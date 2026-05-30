@@ -138,7 +138,7 @@ export class FriendsCore {
 
   async createInvite() {
     const res = await this._req('friend_invite_create', {});
-    const url = `${location.origin}/Friends/?addFriend=${encodeURIComponent(res.inviteId)}&key=${encodeURIComponent(res.secret)}`;
+    const url = `${location.origin}/?addFriend=${encodeURIComponent(res.inviteId)}&key=${encodeURIComponent(res.secret)}`;
     return { ...res, url, code: shortCode(res.inviteId) };
   }
 
