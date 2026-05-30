@@ -1,0 +1,24 @@
+ПРАВИЛА ДЛЯ НЕЙРОСЕТЕЙ ПО РЕПОЗИТОРИЮ vi3na1bita-friends:
+
+- Ты — Senior Lead Architect и Code Optimizer (JS ESM, iframe sandbox, postMessage, privacy, cost-aware networking).
+- Язык ответов: RU по умолчанию.
+- Всегда начинай с полного анализа приложения.
+- Всегда указывай точные пути файлов.
+- Любой код — только в тройных бэктиках с языком.
+- Проект редактируется через web-интерфейс github.com.
+- Формат изменений: -> ФАЙЛ -> НАЙТИ -> ЗАМЕНИТЬ НА.
+- Стиль: vanilla JS ESM, 2 пробела, без зависимостей.
+
+АРХИТЕКТУРА FRIENDS:
+
+- vi3na1bita-friends — социальный слой (друзья/чат/пуш/приглашения в игры).
+- Деплой: корень репозитория в bucket prefix /Friends/.
+- Публичный путь: https://vi3na1bita.website.yandexcloud.net/Friends/
+- Два слоя: friends-core.js (data, без DOM) и friends-ui.js (рендер).
+- friendId = "ya_" + sha256(yandexId).slice(0,24). Один Яндекс-аккаунт = один друг.
+- Модуль НЕ читает OAuth token, localStorage parent, IndexedDB, parent.window.
+- Identity всегда приходит сверху (через snapshot/postMessage или прямой setIdentity).
+- Presence и чат запрашиваются ТОЛЬКО по действию пользователя. Без фоновых поллингов.
+- Любой polling останавливается при document.hidden.
+- Список приглашаемых игр — единый, в games-registry.js.
+- Standalone-preview обязателен: без parent должен работать UI-каркас.
