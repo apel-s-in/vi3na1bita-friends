@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#07091a">
+  <title>Витрина · Друзья</title>
+  <meta name="description" content="Социальный модуль Витрина Разбита">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="vf-app" id="app"></main>
+  <script type="module">
+    import { FriendsCore } from './friends-core.js';
+    import { mountFriendsUI } from './friends-ui.js';
+
+    const core = new FriendsCore();
+    const root = document.getElementById('app');
+    let ui = null;
+
+    const ensureUI = () => {
+      if (!ui) ui = mountFriendsUI(root, core, {});
+      return ui;
+    };
+
+    const bootWithIdentity = async identity => {
+      core.setIdentity(identity || {});
+      ensureUI();
+      if (!core.isReady()) {
+        ui.refresh();
+        return;
+      }
+      try {
+        await core.register();
+      } catch {
+        // даже если register не прошёл, покажем список с попыткой
+      }
+      ui.refresh({ force: true });
+    };
+
+    // Identity приходит от host'а (основное приложение или Game Center).
+    window.addEventListener('message', e => {
+      const d = e.data || {};
+      if (d.kind !== 'vitrina:friends-host') return;
+
+      if (d.type === 'FRIENDS_IDENTITY') {
+        bootWithIdentity(d.payload || {});
+      }
+    });
+
+    // Сообщаем host'у, что модуль готов и ждёт identity.
+    try {
+      if (window.parent !== window) {
+        window.parent.postMessage({ kind: 'vitrina:friends', type: 'FRIENDS_READY', at: Date.now() }, '*');
+      }
+    } catch {}
+
+    // Принятие приглашения по ссылке /Friends/?addFriend=...&key=...
+    const params = new URLSearchParams(location.search);
+    const addFriendId = params.get('addFriend');
+    const addKey = params.get('key');
+
+    const handleIncomingInvite = async () => {
+      if (!addFriendId || !addKey || !core.isReady()) return;
+      try {
+        await core.acceptInvite({ inviteId: addFriendId, secret: addKey });
+        ui?.refresh({ force: true });
+      } catch {}
+    };
+
+    // Standalone-режим: нет parent -> preview-заглушка без сетевых запросов.
+    if (window.parent === window) {
+      ensureUI();
+      ui.refresh(); // покажет "Войдите через Яндекс", т.к. identity нет
+    }
+
+    // Если identity придёт позже — обработаем входящее приглашение после неё.
+    const inviteWatcher = setInterval(() => {
+      if (core.isReady()) {
+        clearInterval(inviteWatcher);
+        handleIncomingInvite();
+      }
+    }, 400);
+    setTimeout(() => clearInterval(inviteWatcher), 8000);
+  </script>
+</body>
+</html>
