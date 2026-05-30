@@ -16,8 +16,8 @@ const MAX_LINES = Number(argv['max-lines'] || 22000);
 
 if (!fs.existsSync(META_DIR)) fs.mkdirSync(META_DIR, { recursive: true });
 
-const FULL_FILE = path.join(META_DIR, 'project-war-hearts-full.txt');
-const ADAPTIVE_FILE = path.join(META_DIR, 'project-war-hearts-adaptive.txt');
+const FULL_FILE = path.join(META_DIR, 'project-friends-full.txt');
+const ADAPTIVE_FILE = path.join(META_DIR, 'project-friends-adaptive.txt');
 
 const toUnix = p => String(p || '').replace(/\\/g, '/');
 const SELF_FULL_REL = toUnix(path.relative(ROOT, FULL_FILE));
@@ -59,8 +59,8 @@ const EXCLUDE_RAW = [
   'package-lock.json',
   'yarn.lock',
   'pnpm-lock.yaml',
-  'project-war-hearts-full*.txt',
-  'project-war-hearts-adaptive*.txt'
+  'project-friends-full*.txt',
+  'project-friends-adaptive*.txt'
 ];
 
 const PRIORITY = {
@@ -193,12 +193,12 @@ const headerBlock = () => {
   const rulesPath = path.join(ROOT, 'ai-rules.txt');
   const rules = fs.existsSync(rulesPath) ? `${fs.readFileSync(rulesPath, 'utf8').trim()}\n\n` : '';
   const repoName = String(argv['repo-name'] || path.basename(ROOT));
-  const repoUrl = String(argv['repo-url'] || readRepoUrl() || 'https://github.com/apel-s-in/vi3na1bita_war_hearts');
+  const repoUrl = String(argv['repo-url'] || readRepoUrl() || 'https://github.com/apel-s-in/vi3na1bita-friends');
 
   return `${rules}Название репозитория: ${repoName}
 Адрес репозитория: ${repoUrl}
-Назначение: отдельная сетевая игра "Война Сердец" для Game Center vi3na1bita-games.
-Публичный путь после деплоя: https://vi3na1bita.website.yandexcloud.net/Games/war_hearts/
+Назначение: отдельный сетевой модуль Друзья для vi3na1bita-music.
+Публичный путь после деплоя: https://vi3na1bita.website.yandexcloud.net/Friends/
 Проект делается и обслуживается средствами https://github.com/ + GitHub Actions + Yandex Object Storage.
 
 ${renderTree()}
