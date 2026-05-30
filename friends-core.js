@@ -156,6 +156,16 @@ export class FriendsCore {
       roomSecret: safe(roomSecret)
     });
   }
+
+  async getPushes() {
+    const res = await this._req('push_poll', {});
+    return Array.isArray(res.items) ? res.items : [];
+  }
+
+  async getProfile(targetId) {
+    const res = await this._req('profile_get', { targetId: safe(targetId) });
+    return res.profile || null;
+  }
 }
 
 const shortCode = inviteId => safe(inviteId).replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase();
