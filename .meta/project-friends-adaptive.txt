@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-05-30 14:58:01 UTC
+Сгенерировано: 2026-05-30 18:00:19 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -741,6 +741,16 @@ export class FriendsCore {
       roomId: safe(roomId),
       roomSecret: safe(roomSecret)
     });
+  }
+
+  async getPushes() {
+    const res = await this._req('push_poll', {});
+    return Array.isArray(res.items) ? res.items : [];
+  }
+
+  async getProfile(targetId) {
+    const res = await this._req('profile_get', { targetId: safe(targetId) });
+    return res.profile || null;
   }
 }
 
