@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-05-30 18:30:39 UTC
+Сгенерировано: 2026-05-30 18:31:57 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -445,6 +445,11 @@ try {
   <meta name="theme-color" content="#07091a">
   <title>Витрина · Друзья</title>
   <meta name="description" content="Социальный модуль Витрина Разбита">
+  <style>
+    html,body{width:100%;height:100%;margin:0;background:#03040c;overflow:hidden;overscroll-behavior:none}
+    body{position:fixed;inset:0}
+    .vf-app{position:fixed !important;inset:0 !important;max-width:420px;margin:0 auto}
+  </style>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
