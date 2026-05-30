@@ -1,0 +1,42 @@
+:root{--vf-bg:#07091a;--vf-panel:#10142d;--vf-line:rgba(132,145,255,.28);--vf-text:#fff;--vf-muted:#aeb5dc;--vf-red:#ff3159;--vf-pink:#ff6b95;--vf-cyan:#24e8ff;--vf-green:#46e6a5}
+*{box-sizing:border-box} [hidden]{display:none !important}
+html,body{width:100%;height:100%;margin:0;background:#03040c;color:var(--vf-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none}
+body{position:fixed;inset:0}
+button,input{font:inherit} button{color:inherit;-webkit-tap-highlight-color:transparent}
+.vf-app{position:fixed;inset:0;max-width:420px;margin:0 auto;overflow:auto;padding:14px;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,rgba(10,13,38,.96),rgba(5,7,20,.98)),var(--vf-bg)}
+.vf-wrap{position:relative;display:block}
+.vf-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}
+.vf-head h2{margin:0;font-size:22px;font-weight:950}
+.vf-btn{min-height:44px;border:0;border-radius:14px;padding:0 14px;background:linear-gradient(135deg,var(--vf-red),#8b5cff);color:#fff;font-weight:950;cursor:pointer;box-shadow:0 10px 24px rgba(255,49,89,.18)}
+.vf-btn.vf-sec{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);box-shadow:none}
+.vf-btn.vf-danger{background:rgba(255,49,89,.16);border:1px solid rgba(255,49,89,.4);box-shadow:none;color:#ffd7df}
+.vf-btn-add{min-height:38px;padding:0 12px;font-size:13px}
+.vf-list{display:grid;gap:8px}
+.vf-friend{min-height:56px;display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(255,255,255,.055);color:#fff;text-align:left;cursor:pointer;padding:0 12px 0 0}
+.vf-ava{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(135deg,var(--vf-red),var(--vf-pink));font-size:20px}
+.vf-ava img{width:100%;height:100%;object-fit:cover;display:block}
+.vf-friend b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+.vf-friend small{color:var(--vf-muted);font-size:11px;font-weight:800}
+.vf-friend small.is-online{color:#adffdf}
+.vf-empty{min-height:160px;display:grid;place-items:center;gap:8px;padding:24px;border-radius:18px;background:rgba(0,0,0,.16);color:var(--vf-muted);text-align:center}
+.vf-empty span{font-size:34px;line-height:1}
+.vf-empty b{color:#fff;font-size:16px}
+.vf-empty small{max-width:280px;line-height:1.4}
+.vf-modal-ov{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:vfFade .18s ease-out}
+.vf-modal{width:100%;max-width:360px;padding:20px 16px;border-radius:24px;background:linear-gradient(180deg,rgba(16,20,45,.97),rgba(8,10,31,.99));border:1px solid var(--vf-line);box-shadow:0 22px 60px rgba(0,0,0,.6);text-align:center}
+.vf-modal-head{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.vf-modal-head b{font-size:18px;font-weight:950}
+.vf-actions{display:grid;gap:8px}
+.vf-games{display:grid;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)}
+.vf-add-body{display:grid;gap:10px}
+.vf-add-body p{margin:0;color:var(--vf-muted);font-size:13px;line-height:1.4}
+.vf-code{color:#fff !important;font-size:15px}
+.vf-code b{color:var(--vf-cyan);letter-spacing:.12em}
+.vf-link{word-break:break-all;font-size:12px}
+.vf-add-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.vf-qr{display:grid;place-items:center;margin-top:10px}
+.vf-qr img{width:200px;height:200px;border-radius:14px;background:#fff;padding:8px}
+.vf-toast{position:fixed;left:50%;bottom:24px;z-index:120;transform:translateX(-50%);max-width:calc(100% - 24px);padding:10px 14px;border-radius:16px;background:rgba(6,8,24,.9);border:1px solid rgba(255,49,89,.35);font-size:13px;font-weight:900;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s ease}
+.vf-toast.is-show{opacity:1}
+@keyframes vfFade{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@media(max-width:430px){.vf-app{padding:12px}}
