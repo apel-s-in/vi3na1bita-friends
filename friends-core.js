@@ -147,6 +147,17 @@ export class FriendsCore {
     return this._req('friend_invite_accept', { inviteId: safe(inviteId), secret: safe(secret) });
   }
 
+  async getInviteInfo(inviteId, secret) {
+    const res = await fetch(this.signalingUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'friend_invite_get', inviteId: safe(inviteId), secret: safe(secret) })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'invite_not_found');
+    return json.invite;
+  }
+
   async sendGameInvite({ toFriendId, gameId, roomId, roomSecret }) {
     return this._req('push_send', {
       toFriendId: safe(toFriendId),
