@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-05-31 08:46:21 UTC
+Сгенерировано: 2026-05-31 08:46:59 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -903,36 +903,59 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
 
   const openAddModal = async () => {
     const ov = openModal(`
-      <div class="vf-modal-head"><b>Добавить друга</b></div>
+      <div class="vf-modal-head" style="justify-content:space-between">
+        <b>Добавить друга</b>
+        <button class="vf-btn vf-sec" id="vf-add-close" style="min-height:30px;padding:0 10px;font-size:16px;box-shadow:none">✕</button>
+      </div>
       <div class="vf-add-body"><p>Создаём приглашение...</p></div>
     `);
+    ov.querySelector('#vf-add-close').onclick = () => ov.remove();
+
     try {
       const invite = await core.createInvite();
-      ov.querySelector('.vf-add-body').innerHTML = `
-        <p class="vf-code">Код: <b>${esc(invite.code)}</b></p>
-        <p class="vf-link">${esc(invite.url)}</p>
-        <div class="vf-add-actions">
-          <button class="vf-btn" data-x="copy">Скопировать ссылку</button>
-          <button class="vf-btn vf-sec" data-x="share">Поделиться</button>
-          <button class="vf-btn vf-sec" data-x="mail">Почта</button>
-          <button class="vf-btn vf-sec" data-x="qr">QR-код</button>
-        </div>
-        <div class="vf-qr" hidden></div>
-      `;
       const url = invite.url;
+      ov.querySelector('.vf-add-body').innerHTML = `
+        <div style="text-align:left;background:rgba(255,255,255,0.03);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);margin-bottom:10px">
+          <div style="font-size:12px;color:var(--vf-muted);margin-bottom:6px;">Отправь свою ссылку-приглашение:</div>
+          <div class="vf-add-actions" style="margin:0;">
+            <button class="vf-btn vf-sec" data-x="copy">📋 Копировать</button>
+            <button class="vf-btn vf-sec" data-x="share">↗ Поделиться</button>
+          </div>
+        </div>
+        <div style="text-align:left;background:rgba(0,0,0,0.2);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.05)">
+          <div style="font-size:12px;color:var(--vf-muted);margin-bottom:8px;">Или вставь присланную тебе ссылку:</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="vf-manual-link" placeholder="Вставь ссылку сюда" autocomplete="off" style="flex:1;min-width:0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;padding:8px 12px;font-size:14px;outline:none;">
+            <button class="vf-btn" id="vf-manual-submit" style="min-height:36px;padding:0 12px;box-shadow:none">ОК</button>
+          </div>
+        </div>
+      `;
+      
       ov.querySelector('[data-x="copy"]')?.addEventListener('click', () => { navigator.clipboard?.writeText?.(url); toast('Ссылка скопирована'); });
       ov.querySelector('[data-x="share"]')?.addEventListener('click', () => {
         if (navigator.share) navigator.share({ title: 'Витрина · Друзья', text: 'Добавь меня в друзья', url }).catch(() => {});
         else { navigator.clipboard?.writeText?.(url); toast('Ссылка скопирована'); }
       });
-      ov.querySelector('[data-x="mail"]')?.addEventListener('click', () => {
-        location.href = `mailto:?subject=${encodeURIComponent('Добавь меня в друзья')}&body=${encodeURIComponent(url)}`;
-      });
-      ov.querySelector('[data-x="qr"]')?.addEventListener('click', () => {
-        const box = ov.querySelector('.vf-qr');
-        box.hidden = false;
-        box.innerHTML = `<img alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}">`;
-      });
+
+      ov.querySelector('#vf-manual-submit').onclick = async () => {
+        const val = ov.querySelector('#vf-manual-link').value.trim();
+        if (!val) return;
+        try {
+          let u = null;
+          try { u = new URL(val); } catch { u = new URL('https://dummy.com/' + (val.startsWith('?') ? val : '?' + val)); }
+          const addId = u.searchParams.get('addFriend');
+          const addKey = u.searchParams.get('key');
+          if (!addId || !addKey) return toast('Неверная ссылка. Скопируйте ссылку целиком.');
+          
+          ov.remove();
+          toast('Добавляем...');
+          await core.acceptInvite({ inviteId: addId, secret: addKey });
+          toast('Друг добавлен!');
+          refresh({ force: true });
+        } catch (err) {
+          toast('Ошибка: ' + (err.message === 'self_friend_forbidden' ? 'Нельзя добавить самого себя' : 'Ссылка недействительна'));
+        }
+      };
     } catch (err) {
       ov.querySelector('.vf-add-body').innerHTML = `<p>Ошибка: ${esc(err.message)}</p>`;
     }
