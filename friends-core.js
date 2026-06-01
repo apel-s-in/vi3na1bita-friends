@@ -124,11 +124,34 @@ export class FriendsCore {
   }
 
   // Presence только по требованию (батч).
+  async heartbeat({ gameId = '', roomId = '' } = {}) {
+    return this._req('presence_heartbeat', {
+      deviceId: this.identity.deviceStableId || 'web',
+      gameId: safe(gameId),
+      roomId: safe(roomId)
+    });
+  }
+
   async getPresence(friendIds = []) {
     const ids = friendIds.map(safe).filter(Boolean).slice(0, 50);
     if (!ids.length) return {};
     const res = await this._req('presence_batch', { friendIds: ids });
     return res.presence || {};
+  }
+
+  async sendChatMessage({ toFriendId, text }) {
+    return this._req('chat_send', {
+      toFriendId: safe(toFriendId),
+      text: safe(text).slice(0, 500)
+    });
+  }
+
+  async getChatMessages({ friendId, after = 0 } = {}) {
+    const res = await this._req('chat_poll', {
+      friendId: safe(friendId),
+      after: Number(after || 0)
+    });
+    return Array.isArray(res.items) ? res.items : [];
   }
 
   async removeFriend(friendId) {
