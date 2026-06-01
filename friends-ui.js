@@ -274,6 +274,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
           <button class="vf-btn vf-sec" data-x="share">Поделиться</button>
           <button class="vf-btn vf-sec" data-x="mail">Почта</button>
           <button class="vf-btn vf-sec" data-x="qr">QR-код</button>
+          <button class="vf-btn vf-sec" data-x="nearby">Друг рядом</button>
         </div>
         <div class="vf-qr" hidden></div>
         <div style="text-align:left;background:rgba(0,0,0,0.2);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);margin-top:12px;">
@@ -297,6 +298,39 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
         const box = ov.querySelector('.vf-qr');
         box.hidden = false;
         box.innerHTML = `<img alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}">`;
+      });
+
+      ov.querySelector('[data-x="nearby"]')?.addEventListener('click', async () => {
+        const box = ov.querySelector('.vf-qr');
+        box.hidden = false;
+        box.innerHTML = `<p>Создаём код для друга рядом...</p>`;
+        try {
+          const near = await core.createNearbyFriendCode();
+          box.innerHTML = `
+            <div style="display:grid;gap:10px;text-align:center">
+              <p class="vf-code">Код рядом: <b>${esc(near.code)}</b></p>
+              <p style="margin:0;color:var(--vf-muted);font-size:12px;line-height:1.35">Попросите друга открыть «Добавить друга» и ввести этот код. Код действует несколько минут.</p>
+              <div style="display:flex;gap:8px">
+                <input type="text" inputmode="numeric" maxlength="6" id="vf-nearby-code" placeholder="Код друга" style="flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:0 12px;outline:none">
+                <button class="vf-btn" id="vf-nearby-join" style="min-height:40px;box-shadow:none">ОК</button>
+              </div>
+            </div>
+          `;
+          box.querySelector('#vf-nearby-join')?.addEventListener('click', async () => {
+            const code = box.querySelector('#vf-nearby-code')?.value || '';
+            if (!code.trim()) return toast('Введите код друга');
+            try {
+              await core.joinNearbyFriendCode(code);
+              toast('Друг добавлен!');
+              ov.remove();
+              refresh({ force: true });
+            } catch (err) {
+              toast('Код не найден или устарел');
+            }
+          });
+        } catch (err) {
+          box.innerHTML = `<p>Ошибка: ${esc(err.message)}</p>`;
+        }
       });
 
       ov.querySelector('#vf-manual-submit').onclick = async () => {
