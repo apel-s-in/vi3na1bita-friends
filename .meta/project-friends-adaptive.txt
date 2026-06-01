@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-01 08:01:57 UTC
+Сгенерировано: 2026-06-01 08:24:15 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1039,15 +1039,27 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
       input.value = '';
       try {
         const res = await core.sendChatMessage({ toFriendId: friendId, text });
-        append({ fromFriendId: core.identity?.friendId, text, createdAt: res.createdAt || Date.now() });
+        const createdAt = res.createdAt || Date.now();
+        lastAt = Math.max(lastAt, Number(createdAt || 0));
+        append({ fromFriendId: core.identity?.friendId, text, createdAt });
       } catch (err) {
         toast(`Ошибка: ${err.message}`);
       }
     };
 
+    const cleanup = () => {
+      clearInterval(timer);
+      observer.disconnect();
+    };
+
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(ov)) cleanup();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
     load();
     timer = setInterval(load, 3500);
-    ov.addEventListener('remove', () => clearInterval(timer));
   };
 
   const openAddModal = async () => {
