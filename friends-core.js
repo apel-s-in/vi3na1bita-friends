@@ -200,6 +200,35 @@ export class FriendsCore {
     const res = await this._req('profile_get', { targetId: safe(targetId) });
     return res.profile || null;
   }
+
+  async getWebPushConfig() {
+    return this._req('webpush_config', {});
+  }
+
+  async subscribeWebPush(subscription) {
+    return this._req('webpush_subscribe', {
+      subscription,
+      userAgent: navigator.userAgent || ''
+    });
+  }
+
+  async unsubscribeWebPush(subscriptionOrEndpoint) {
+    const endpoint = typeof subscriptionOrEndpoint === 'string'
+      ? subscriptionOrEndpoint
+      : subscriptionOrEndpoint?.endpoint || '';
+    return this._req('webpush_unsubscribe', { endpoint });
+  }
+
+  async createNearbyFriendCode() {
+    return this._req('nearby_friend_create', {});
+  }
+
+  async joinNearbyFriendCode(code) {
+    this._cache.at = 0;
+    return this._req('nearby_friend_join', {
+      code: safe(code).replace(/\D/g, '').slice(0, 6)
+    });
+  }
 }
 
 const shortCode = inviteId => safe(inviteId).replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase();
