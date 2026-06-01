@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-01 14:34:19 UTC
+Сгенерировано: 2026-06-01 14:36:18 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -896,7 +896,7 @@ const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
 
-export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null } = {}) => {
   if (!root) return null;
 
   const el = document.createElement('section');
@@ -915,7 +915,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
   const renderList = (friends = [], presence = {}) => `
     <div class="vf-head">
       <h2>Друзья</h2>
-      <button class="vf-btn vf-btn-add" type="button" data-act="add">＋ Добавить</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="vf-btn vf-btn-add vf-sec" type="button" data-act="notify">🔔</button>
+        <button class="vf-btn vf-btn-add" type="button" data-act="add">＋ Добавить</button>
+      </div>
     </div>
     <div class="vf-list">
       ${friends.length ? friends.map(f => {
@@ -958,6 +961,15 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
 
   const bindList = () => {
     el.querySelector('[data-act="add"]')?.addEventListener('click', openAddModal);
+    el.querySelector('[data-act="notify"]')?.addEventListener('click', async () => {
+      if (typeof onEnableWebPush !== 'function') {
+        toast('Системные уведомления доступны в основном приложении');
+        return;
+      }
+
+      const res = await onEnableWebPush();
+      toast(res?.ok ? 'Системные уведомления включены' : 'Уведомления не включены');
+    });
     el.querySelectorAll('[data-friend]').forEach(btn => {
       btn.addEventListener('click', () => openFriendActions(btn.dataset.friend, btn.querySelector('b')?.textContent || 'Друг'));
     });
@@ -1050,7 +1062,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
     ov.querySelector('[data-a="push"]')?.addEventListener('click', async () => {
       ov.remove();
       try {
-        await core._req('push_send', { toFriendId: friendId, kind: 'GENERIC', text: '👋 Привет из Витрины!' });
+        await core.sendPush({ toFriendId: friendId, kind: 'GENERIC', text: '👋 Привет из Витрины!' });
         toast('Пуш отправлен');
       } catch (err) {
         toast(`Ошибка: ${err.message}`);
