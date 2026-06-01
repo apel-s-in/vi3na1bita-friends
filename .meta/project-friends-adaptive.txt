@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-01 10:45:25 UTC
+Сгенерировано: 2026-06-01 14:34:19 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -824,6 +824,17 @@ export class FriendsCore {
     return this._req('push_send', {
       toFriendId: safe(toFriendId),
       kind: 'GAME_INVITE',
+      gameId: safe(gameId),
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret)
+    });
+  }
+
+  async sendPush({ toFriendId, kind = 'GENERIC', text = '', gameId = '', roomId = '', roomSecret = '' } = {}) {
+    return this._req('push_send', {
+      toFriendId: safe(toFriendId),
+      kind: safe(kind || 'GENERIC').slice(0, 40),
+      text: safe(text).slice(0, 300),
       gameId: safe(gameId),
       roomId: safe(roomId),
       roomSecret: safe(roomSecret)
