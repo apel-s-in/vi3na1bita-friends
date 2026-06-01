@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-01 08:24:15 UTC
+Сгенерировано: 2026-06-01 09:29:15 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -954,12 +954,52 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
 
     ov.querySelectorAll('[data-game]').forEach(b => {
       b.addEventListener('click', async () => {
-        ov.remove();
-        if (typeof onGameInvite === 'function') {
-          onGameInvite({ friendId, gameId: b.dataset.game });
-        } else {
-          toast('Игровое приглашение появится в Фазе C');
-        }
+        const gameId = b.dataset.game;
+        const gameTitle = b.textContent.trim();
+        let online = false;
+
+        try {
+          const presence = await core.getPresence([friendId]);
+          online = !!presence[friendId]?.online;
+        } catch {}
+
+        ov.querySelector('.vf-modal').innerHTML = `
+          <div class="vf-modal-head"><span class="vf-ava">👤</span><b>${esc(name)}</b></div>
+          <div style="text-align:left;display:grid;gap:10px;margin-bottom:14px">
+            <p style="margin:0;color:var(--vf-muted);font-size:13px;line-height:1.4">Вы хотите пригласить <b style="color:#fff">${esc(name)}</b> в игру <b style="color:#fff">${esc(gameTitle)}</b>?</p>
+            <div style="padding:10px 12px;border-radius:14px;background:${online ? 'rgba(70,230,165,.1)' : 'rgba(255,212,90,.08)'};border:1px solid ${online ? 'rgba(70,230,165,.28)' : 'rgba(255,212,90,.28)'};color:${online ? '#adffdf' : '#ffe7a3'};font-size:12px;font-weight:900">
+              Статус игрока: ${online ? 'онлайн' : 'не в сети · можно отправить push-вызов'}
+            </div>
+          </div>
+          <div class="vf-actions">
+            <button class="vf-btn" data-confirm-invite>Пригласить</button>
+            <button class="vf-btn vf-sec" data-cancel-invite>Отклонить</button>
+          </div>
+        `;
+
+        ov.querySelector('[data-cancel-invite]')?.addEventListener('click', () => ov.remove());
+        ov.querySelector('[data-confirm-invite]')?.addEventListener('click', async () => {
+          ov.querySelector('.vf-modal').innerHTML = `
+            <div style="display:grid;place-items:center;gap:12px;padding:18px 8px">
+              <div style="width:72px;height:72px;display:grid;place-items:center;border-radius:50%;background:rgba(255,49,89,.14);border:1px solid rgba(255,49,89,.35);font-size:38px;animation:vfFade .8s ease-in-out infinite alternate">💔</div>
+              <b style="font-size:18px">Ожидаем ответ</b>
+              <p style="margin:0;color:var(--vf-muted);font-size:13px;line-height:1.4">Приглашение для ${esc(name)} отправляется. Если игрок не в сети, он получит push-вызов при следующей активности.</p>
+              <div class="vf-actions" style="width:100%">
+                <button class="vf-btn vf-sec" data-wait-cancel>Отменить</button>
+                <button class="vf-btn vf-sec" data-wait-extend>Продлить ожидание</button>
+              </div>
+            </div>
+          `;
+
+          ov.querySelector('[data-wait-cancel]')?.addEventListener('click', () => ov.remove());
+          ov.querySelector('[data-wait-extend]')?.addEventListener('click', () => toast('Ожидание продлено'));
+
+          if (typeof onGameInvite === 'function') {
+            await onGameInvite({ friendId, gameId });
+          } else {
+            toast('Игровое приглашение появится в Фазе C');
+          }
+        });
       });
     });
 
