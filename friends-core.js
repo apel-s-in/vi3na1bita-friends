@@ -191,6 +191,17 @@ export class FriendsCore {
     });
   }
 
+  async sendPush({ toFriendId, kind = 'GENERIC', text = '', gameId = '', roomId = '', roomSecret = '' } = {}) {
+    return this._req('push_send', {
+      toFriendId: safe(toFriendId),
+      kind: safe(kind || 'GENERIC').slice(0, 40),
+      text: safe(text).slice(0, 300),
+      gameId: safe(gameId),
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret)
+    });
+  }
+
   async getPushes() {
     const res = await this._req('push_poll', {});
     return Array.isArray(res.items) ? res.items : [];
