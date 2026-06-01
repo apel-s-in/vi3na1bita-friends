@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-01 08:01:03 UTC
+Сгенерировано: 2026-06-01 08:01:57 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -963,15 +963,91 @@ export const mountFriendsUI = (root, core, { onGameInvite = null } = {}) => {
       });
     });
 
-    ov.querySelector('[data-a="chat"]')?.addEventListener('click', () => { ov.remove(); toast('Чат появится в Фазе E'); });
-    ov.querySelector('[data-a="push"]')?.addEventListener('click', () => { ov.remove(); toast('Пуш появится в Фазе C'); });
-    ov.querySelector('[data-a="voice"]')?.addEventListener('click', () => { ov.remove(); toast('Звонок появится в Фазе E'); });
+    ov.querySelector('[data-a="chat"]')?.addEventListener('click', () => {
+      ov.remove();
+      openChatModal(friendId, name);
+    });
+    ov.querySelector('[data-a="push"]')?.addEventListener('click', async () => {
+      ov.remove();
+      try {
+        await core._req('push_send', { toFriendId: friendId, kind: 'GENERIC', text: '👋 Привет из Витрины!' });
+        toast('Пуш отправлен');
+      } catch (err) {
+        toast(`Ошибка: ${err.message}`);
+      }
+    });
+    ov.querySelector('[data-a="voice"]')?.addEventListener('click', () => {
+      ov.remove();
+      toast('Голос работает внутри сетевого боя после P2P-подключения');
+    });
 
     ov.querySelector('[data-a="remove"]')?.addEventListener('click', async () => {
       ov.remove();
       try { await core.removeFriend(friendId); toast('Друг удалён'); refresh({ force: true }); }
       catch (err) { toast(`Ошибка: ${err.message}`); }
     });
+  };
+
+  const openChatModal = friendId => {
+    let lastAt = 0;
+    let timer = 0;
+
+    const ov = openModal(`
+      <div class="vf-modal-head" style="justify-content:space-between">
+        <b>Чат</b>
+        <button class="vf-btn vf-sec" id="vf-chat-close" style="min-height:30px;padding:0 10px;font-size:16px;box-shadow:none">✕</button>
+      </div>
+      <div class="vf-chat-log" style="min-height:180px;max-height:260px;overflow:auto;display:grid;gap:6px;text-align:left;margin-bottom:10px;padding:10px;border-radius:14px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08)"></div>
+      <form class="vf-chat-form" style="display:grid;grid-template-columns:1fr auto;gap:8px">
+        <input type="text" maxlength="500" placeholder="Сообщение..." autocomplete="off" style="min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:0 12px;outline:none">
+        <button class="vf-btn" type="submit" style="min-height:40px;box-shadow:none">▶</button>
+      </form>
+    `);
+
+    const log = ov.querySelector('.vf-chat-log');
+    const input = ov.querySelector('input');
+
+    const append = msg => {
+      const mine = msg.fromFriendId === core.identity?.friendId;
+      const row = document.createElement('div');
+      row.style.cssText = `justify-self:${mine ? 'end' : 'start'};max-width:86%;padding:8px 10px;border-radius:12px;background:${mine ? 'linear-gradient(135deg,var(--vf-red),#8b5cff)' : 'rgba(255,255,255,.08)'};font-size:13px;line-height:1.3;color:#fff`;
+      row.textContent = msg.text || '';
+      log.append(row);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    const load = async () => {
+      if (document.hidden) return;
+      try {
+        const items = await core.getChatMessages({ friendId, after: lastAt });
+        items.forEach(msg => {
+          lastAt = Math.max(lastAt, Number(msg.createdAt || 0));
+          append(msg);
+        });
+      } catch {}
+    };
+
+    ov.querySelector('#vf-chat-close').onclick = () => {
+      clearInterval(timer);
+      ov.remove();
+    };
+
+    ov.querySelector('.vf-chat-form').onsubmit = async e => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      try {
+        const res = await core.sendChatMessage({ toFriendId: friendId, text });
+        append({ fromFriendId: core.identity?.friendId, text, createdAt: res.createdAt || Date.now() });
+      } catch (err) {
+        toast(`Ошибка: ${err.message}`);
+      }
+    };
+
+    load();
+    timer = setInterval(load, 3500);
+    ov.addEventListener('remove', () => clearInterval(timer));
   };
 
   const openAddModal = async () => {
