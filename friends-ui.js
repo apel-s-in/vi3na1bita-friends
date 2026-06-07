@@ -27,7 +27,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     <div class="vf-head">
       <h2>Друзья</h2>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="vf-btn vf-btn-add vf-sec" type="button" data-act="notify">🔔</button>
+        <button class="vf-btn vf-btn-add vf-sec" type="button" data-act="notify" title="Включить системные уведомления">🔔 Увед.</button>
         <button class="vf-btn vf-btn-add" type="button" data-act="add">＋ Добавить</button>
       </div>
     </div>
@@ -79,7 +79,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       }
 
       const res = await onEnableWebPush();
-      toast(res?.ok ? 'Системные уведомления включены' : 'Уведомления не включены');
+      toast(res?.ok ? 'Системные уведомления включены' : `Уведомления не включены: ${res?.reason || 'ошибка'}`);
     });
     el.querySelectorAll('[data-friend]').forEach(btn => {
       btn.addEventListener('click', () => openFriendActions(btn.dataset.friend, btn.querySelector('b')?.textContent || 'Друг'));
@@ -245,8 +245,9 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         const createdAt = res.createdAt || Date.now();
         lastAt = Math.max(lastAt, Number(createdAt || 0));
         append({ fromFriendId: core.identity?.friendId, text, createdAt });
+        toast(res?.webPush?.sent > 0 ? 'Сообщение отправлено · push доставлен' : 'Сообщение отправлено');
       } catch (err) {
-        toast(`Ошибка: ${err.message}`);
+        toast(`Ошибка отправки: ${err.message}`);
       }
     };
 
