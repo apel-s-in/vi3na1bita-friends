@@ -7,7 +7,7 @@ const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
 
-export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, onChatOpened = null } = {}) => {
   if (!root) return null;
 
   const el = document.createElement('section');
@@ -37,10 +37,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         const name = f.profile?.displayName || 'Друг';
         const avatar = f.profile?.avatarUrl;
         const online = !!presence[fid]?.online;
+        const unread = typeof getUnread === 'function' ? Number(getUnread(fid) || 0) : 0;
         return `
           <button class="vf-friend" type="button" data-friend="${esc(fid)}">
             <span class="vf-ava">${avatar ? `<img src="${esc(avatar)}" alt="">` : '👤'}</span>
-            <b>${esc(name)}</b>
+            <b>${esc(name)}${unread ? ` <span class="vf-unread" title="Новых сообщений: ${unread}">💌${unread > 1 ? `<i>${unread > 9 ? '9+' : unread}</i>` : ''}</span>` : ''}</b>
             <small class="${online ? 'is-online' : ''}">${online ? 'онлайн' : 'не в сети'}</small>
           </button>
         `;
@@ -168,6 +169,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     ov.querySelector('[data-a="chat"]')?.addEventListener('click', () => {
       ov.remove();
+      onChatOpened?.(friendId);
       openChatModal(friendId, name);
     });
     ov.querySelector('[data-a="push"]')?.addEventListener('click', async () => {
