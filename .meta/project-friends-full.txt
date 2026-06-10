@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-10 19:05:37 UTC
+Сгенерировано: 2026-06-10 19:06:11 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -612,6 +612,9 @@ Social layer (friends / chat / push / game invites) for vi3na1bita ecosystem.
 .vf-friend b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
 .vf-friend small{color:var(--vf-muted);font-size:11px;font-weight:800}
 .vf-friend small.is-online{color:#adffdf}
+.vf-unread{position:relative;display:inline-block;margin-left:4px;font-size:14px;line-height:1;animation:vfUnreadPulse 1.4s ease-in-out infinite}
+.vf-unread i{position:absolute;top:-5px;right:-8px;min-width:14px;height:14px;display:grid;place-items:center;padding:0 3px;border-radius:999px;background:var(--vf-red);color:#fff;font-size:9px;font-weight:900;font-style:normal;box-shadow:0 0 6px rgba(255,49,89,.6)}
+@keyframes vfUnreadPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
 .vf-empty{min-height:160px;display:grid;place-items:center;gap:8px;padding:24px;border-radius:18px;background:rgba(0,0,0,.16);color:var(--vf-muted);text-align:center}
 .vf-empty span{font-size:34px;line-height:1}
 .vf-empty b{color:#fff;font-size:16px}
