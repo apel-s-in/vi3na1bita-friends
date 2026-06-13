@@ -17,6 +17,8 @@ const fmtChatTime = ts => {
   return `${yy}.${mm}.${dd} ${hh}:${mi}`;
 };
 
+const fmtStatusTime = ts => Number(ts || 0) > 0 ? fmtChatTime(ts) : '—';
+
 export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, onUnreadClick = null, onChatOpened = null } = {}) => {
   if (!root) return null;
 
@@ -264,7 +266,14 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const mine = msg.fromFriendId === core.identity?.friendId;
       const row = document.createElement('div');
       row.className = `vf-chat-msg ${mine ? 'is-mine' : 'is-friend'}`;
-      row.innerHTML = `
+      row.innerHTML = mine ? `
+        <div class="vf-chat-bubble">${esc(msg.text || '')}</div>
+        <div class="vf-chat-statuses">
+          <div>Отправлено: ${fmtStatusTime(msg.createdAt)}</div>
+          <div>Доставлено: ${fmtStatusTime(msg.deliveredAt)}</div>
+          <div>Прочитано: ${fmtStatusTime(msg.readAt)}</div>
+        </div>
+      ` : `
         <div class="vf-chat-bubble">${esc(msg.text || '')}</div>
         <div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>
       `;
@@ -316,12 +325,15 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         const res = await core.sendChatMessage({ toFriendId: friendId, text });
         const createdAt = res.createdAt || Date.now();
         lastAt = Math.max(lastAt, Number(createdAt || 0));
-        append({ msgId: res.msgId || `local-${createdAt}`, fromFriendId: core.identity?.friendId, text, createdAt });
-        if (res?.webPush?.sent > 0) {
-          toast('Сообщение отправлено · push доставлен');
-        } else {
-          toast(`Сообщение отправлено · push не доставлен: ${res?.webPush?.error || res?.webPush?.reason || 'нет подписки'}`);
-        }
+        append({
+          msgId: res.msgId || `local-${createdAt}`,
+          fromFriendId: core.identity?.friendId,
+          text,
+          createdAt,
+          deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
+          readAt: 0
+        });
+        toast('Сообщение отправлено');
       } catch (err) {
         toast(`Ошибка отправки: ${err.message}`);
       }
