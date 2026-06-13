@@ -236,6 +236,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       </form>
     `);
 
+    ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal');
+
     const log = ov.querySelector('.vf-chat-log');
     const input = ov.querySelector('input');
     const panel = ov.querySelector('.vf-chat-settings-panel');
@@ -301,7 +303,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         const createdAt = res.createdAt || Date.now();
         lastAt = Math.max(lastAt, Number(createdAt || 0));
         append({ msgId: res.msgId || `local-${createdAt}`, fromFriendId: core.identity?.friendId, text, createdAt });
-        toast(res?.webPush?.sent > 0 ? 'Сообщение отправлено · push доставлен' : 'Сообщение отправлено');
+        if (res?.webPush?.sent > 0) {
+          toast('Сообщение отправлено · push доставлен');
+        } else {
+          toast(`Сообщение отправлено · push не доставлен: ${res?.webPush?.error || res?.webPush?.reason || 'нет подписки'}`);
+        }
       } catch (err) {
         toast(`Ошибка отправки: ${err.message}`);
       }
