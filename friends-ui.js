@@ -206,7 +206,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     });
 
     ov.querySelector('[data-a="chat"]')?.addEventListener('click', () => {
-      ov.remove();
+      ov.vfClose?.();
       onChatOpened?.(friendId);
       openChatModal(friendId, name);
     });
@@ -225,7 +225,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     });
 
     ov.querySelector('[data-a="remove"]')?.addEventListener('click', async () => {
-      ov.remove();
+      ov.vfClose?.();
       try { await core.removeFriend(friendId); toast('Друг удалён'); refresh({ force: true }); }
       catch (err) { toast(`Ошибка: ${err.message}`); }
     });
@@ -451,7 +451,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
           if (!addId || !addKey) return toast('Неверная ссылка. Скопируйте целиком.');
 
-          ov.remove();
+          ov.vfClose?.();
           toast('Добавляем...');
           await core.acceptInvite({ inviteId: addId, secret: addKey });
           toast('Друг добавлен!');
