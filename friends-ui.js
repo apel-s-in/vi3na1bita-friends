@@ -179,7 +179,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           </div>
         `;
 
-        ov.querySelector('[data-cancel-invite]')?.addEventListener('click', () => ov.remove());
+        ov.querySelector('[data-cancel-invite]')?.addEventListener('click', () => ov.vfClose?.());
         ov.querySelector('[data-confirm-invite]')?.addEventListener('click', async () => {
           ov.querySelector('.vf-modal').innerHTML = `
             <div style="display:grid;place-items:center;gap:12px;padding:18px 8px">
@@ -193,7 +193,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
             </div>
           `;
 
-          ov.querySelector('[data-wait-cancel]')?.addEventListener('click', () => ov.remove());
+          ov.querySelector('[data-wait-cancel]')?.addEventListener('click', () => ov.vfClose?.());
           ov.querySelector('[data-wait-extend]')?.addEventListener('click', () => toast('Ожидание продлено'));
 
           if (typeof onGameInvite === 'function') {
@@ -210,7 +210,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       void openChat(friendId);
     });
     ov.querySelector('[data-a="push"]')?.addEventListener('click', async () => {
-      ov.remove();
+      ov.vfClose?.();
       try {
         await core.sendPush({ toFriendId: friendId, kind: 'GENERIC', text: '👋 Привет из Витрины!' });
         toast('Пуш отправлен');
@@ -219,7 +219,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       }
     });
     ov.querySelector('[data-a="voice"]')?.addEventListener('click', () => {
-      ov.remove();
+      ov.vfClose?.();
       toast('Голос работает внутри сетевого боя после P2P-подключения');
     });
 
@@ -381,7 +381,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       </div>
       <div class="vf-add-body"><p>Создаём приглашение...</p></div>
     `);
-    ov.querySelector('#vf-add-close').onclick = () => ov.remove();
+    ov.querySelector('#vf-add-close').onclick = () => ov.vfClose?.();
 
     try {
       const invite = await core.createInvite();
@@ -442,7 +442,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
             try {
               await core.joinNearbyFriendCode(code);
               toast('Друг добавлен!');
-              ov.remove();
+              ov.vfClose?.();
               refresh({ force: true });
             } catch (err) {
               toast('Код не найден или устарел');
