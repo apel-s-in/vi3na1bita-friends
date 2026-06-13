@@ -141,7 +141,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       <div class="vf-actions">
         <button class="vf-btn" data-a="invite">▶ Пригласить в игру</button>
         <button class="vf-btn vf-sec" data-a="chat">💬 Написать в чат</button>
-        <button class="vf-btn vf-sec" data-a="push">🔔 Отправить пуш</button>
+        <button class="vf-btn vf-sec" data-a="push">🔔 Пригласить в приложение</button>
         <button class="vf-btn vf-sec" data-a="voice">🎙 Позвонить</button>
         <button class="vf-btn vf-danger" data-a="remove">🗑 Удалить из друзей</button>
       </div>
@@ -212,8 +212,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     ov.querySelector('[data-a="push"]')?.addEventListener('click', async () => {
       ov.vfClose?.();
       try {
-        await core.sendPush({ toFriendId: friendId, kind: 'GENERIC', text: '👋 Привет из Витрины!' });
-        toast('Пуш отправлен');
+        await core.sendPush({ toFriendId: friendId, kind: 'GENERIC' });
+        toast('Приглашение отправлено');
       } catch (err) {
         toast(`Ошибка: ${err.message}`);
       }
