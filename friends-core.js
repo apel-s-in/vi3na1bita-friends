@@ -92,8 +92,9 @@ export class FriendsCore {
 
     const json = jsonParse(await res.text()) || {};
     if (!res.ok || json.ok === false) {
-      const err = new Error(json.error || json.reason || `http_${res.status}`);
+      const err = new Error(`${action}: ${json.error || json.reason || `http_${res.status}`}`);
       err.status = res.status;
+      err.action = action;
       this.onError(err);
       throw err;
     }
