@@ -17,7 +17,7 @@ const fmtChatTime = ts => {
   return `${yy}.${mm}.${dd} ${hh}:${mi}`;
 };
 
-export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, onChatOpened = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, onUnreadClick = null, onChatOpened = null } = {}) => {
   if (!root) return null;
 
   const el = document.createElement('section');
@@ -51,8 +51,12 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         return `
           <button class="vf-friend" type="button" data-friend="${esc(fid)}" data-name="${esc(name)}">
             <span class="vf-ava">${avatar ? `<img src="${esc(avatar)}" alt="">` : '👤'}</span>
-            <b>${esc(name)}${unread ? ` <span class="vf-unread" title="Новых сообщений: ${unread}">💌${unread > 1 ? `<i>${unread > 9 ? '9+' : unread}</i>` : ''}</span>` : ''}</b>
-            <small class="${online ? 'is-online' : ''}">${online ? 'онлайн' : 'не в сети'}</small>
+            <b>${esc(name)}</b>
+            ${unread ? `
+              <span class="vf-unread" role="button" tabindex="0" data-unread-chat="${esc(fid)}" title="Открыть новое сообщение">
+                💌${unread > 1 ? `<i>${unread > 9 ? '9+' : unread}</i>` : ''}
+              </span>
+            ` : `<small class="${online ? 'is-online' : ''}">${online ? 'онлайн' : 'не в сети'}</small>`}
           </button>
         `;
       }).join('') : `
@@ -92,6 +96,16 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const res = await onEnableWebPush();
       toast(res?.ok ? 'Системные уведомления включены' : `Уведомления не включены: ${res?.reason || 'ошибка'}`);
     });
+    el.querySelectorAll('[data-unread-chat]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const friendId = btn.dataset.unreadChat;
+        if (typeof onUnreadClick === 'function') onUnreadClick(friendId);
+        else openChat(friendId);
+      });
+    });
+
     el.querySelectorAll('[data-friend]').forEach(btn => {
       btn.addEventListener('click', () => openFriendActions(btn.dataset.friend, btn.dataset.name || 'Друг'));
     });
