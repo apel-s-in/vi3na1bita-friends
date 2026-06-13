@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-13 14:28:13 UTC
+Сгенерировано: 2026-06-13 14:28:41 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -776,8 +776,9 @@ export class FriendsCore {
 
     const json = jsonParse(await res.text()) || {};
     if (!res.ok || json.ok === false) {
-      const err = new Error(json.error || json.reason || `http_${res.status}`);
+      const err = new Error(`${action}: ${json.error || json.reason || `http_${res.status}`}`);
       err.status = res.status;
+      err.action = action;
       this.onError(err);
       throw err;
     }
