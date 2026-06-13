@@ -218,9 +218,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         toast(`Ошибка: ${err.message}`);
       }
     });
-    ov.querySelector('[data-a="voice"]')?.addEventListener('click', () => {
+    ov.querySelector('[data-a="voice"]')?.addEventListener('click', async () => {
       ov.vfClose?.();
-      void openVoiceCall(friendId);
+      const ok = await openVoiceCall(friendId);
+      if (!ok) toast('Звонок уже принят на другом устройстве или сервис перегружен');
     });
 
     ov.querySelector('[data-a="remove"]')?.addEventListener('click', async () => {
