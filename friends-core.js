@@ -158,6 +158,20 @@ export class FriendsCore {
     return this._req('chat_clear', { friendId: safe(friendId) });
   }
 
+  async markChatDelivered({ friendId, msgId = '' } = {}) {
+    return this._req('chat_delivery', {
+      friendId: safe(friendId),
+      msgId: safe(msgId)
+    });
+  }
+
+  async markChatRead({ friendId, msgId = '' } = {}) {
+    return this._req('chat_read', {
+      friendId: safe(friendId),
+      msgId: safe(msgId)
+    });
+  }
+
   async removeFriend(friendId) {
     this._cache.at = 0;
     return this._req('friend_remove', { targetId: safe(friendId) });
