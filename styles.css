@@ -18,9 +18,9 @@
 .vf-friend b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
 .vf-friend small{color:var(--vf-muted);font-size:11px;font-weight:800}
 .vf-friend small.is-online{color:#adffdf}
-.vf-unread{position:relative;display:inline-block;margin-left:4px;font-size:14px;line-height:1;animation:vfUnreadPulse 1.4s ease-in-out infinite}
+.vf-unread{position:relative;display:inline-block;margin-left:4px;font-size:14px;line-height:1;transform-origin:center;animation:vfUnreadShake 8s ease-in-out infinite}
 .vf-unread i{position:absolute;top:-5px;right:-8px;min-width:14px;height:14px;display:grid;place-items:center;padding:0 3px;border-radius:999px;background:var(--vf-red);color:#fff;font-size:9px;font-weight:900;font-style:normal;box-shadow:0 0 6px rgba(255,49,89,.6)}
-@keyframes vfUnreadPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+@keyframes vfUnreadShake{0%,88%,100%{transform:translateX(0) scale(1)}90%{transform:translateX(-1px) scale(1.08)}92%{transform:translateX(2px) scale(1.12)}94%{transform:translateX(-2px) scale(1.12)}96%{transform:translateX(1px) scale(1.08)}}
 .vf-empty{min-height:160px;display:grid;place-items:center;gap:8px;padding:24px;border-radius:18px;background:rgba(0,0,0,.16);color:var(--vf-muted);text-align:center}
 .vf-empty span{font-size:34px;line-height:1}
 .vf-empty b{color:#fff;font-size:16px}
@@ -41,5 +41,29 @@
 .vf-qr img{width:200px;height:200px;border-radius:14px;background:#fff;padding:8px}
 .vf-toast{position:fixed;left:50%;bottom:24px;z-index:120;transform:translateX(-50%);max-width:calc(100% - 24px);padding:10px 14px;border-radius:16px;background:rgba(6,8,24,.9);border:1px solid rgba(255,49,89,.35);font-size:13px;font-weight:900;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s ease}
 .vf-toast.is-show{opacity:1}
+.vf-modal-lock{overflow:hidden!important;overscroll-behavior:none!important}
+.vf-chat-head{justify-content:space-between}
+.vf-chat-head b{min-width:0;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vf-chat-gear,.vf-chat-close{width:36px;min-height:34px;padding:0!important;font-size:16px;box-shadow:none!important}
+.vf-chat-settings-panel{margin:-4px 0 10px;padding:10px;border-radius:14px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08)}
+.vf-chat-log{height:min(52vh,360px);min-height:230px;overflow:auto;display:flex;flex-direction:column;gap:8px;text-align:left;margin-bottom:10px;padding:10px;border-radius:14px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);-webkit-overflow-scrolling:touch}
+.vf-chat-msg{display:flex;flex-direction:column;max-width:86%;gap:3px}
+.vf-chat-msg.is-mine{align-self:flex-end;align-items:flex-end}
+.vf-chat-msg.is-friend{align-self:flex-start;align-items:flex-start}
+.vf-chat-bubble{width:fit-content;max-width:100%;padding:8px 10px;border-radius:13px;color:#fff;font-size:14px;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+.vf-chat-msg.is-mine .vf-chat-bubble{background:linear-gradient(135deg,var(--vf-red),#8b5cff);border-bottom-right-radius:5px}
+.vf-chat-msg.is-friend .vf-chat-bubble{background:rgba(255,255,255,.09);border-bottom-left-radius:5px}
+.vf-chat-time{font-size:10px;line-height:1;color:rgba(174,181,220,.75);padding:0 3px}
+.vf-chat-form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.vf-chat-form input{min-width:0;height:42px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:0 12px;outline:none;font-size:16px}
+.vf-chat-form button{min-height:42px;box-shadow:none}
+.vf-mail-ov{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.55);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.vf-mail-card{width:min(360px,calc(100vw - 28px));padding:18px;border-radius:24px;background:linear-gradient(180deg,rgba(16,20,45,.98),rgba(8,10,31,.99));border:1px solid var(--vf-line);box-shadow:0 24px 70px rgba(0,0,0,.65);text-align:center;color:#fff;animation:vfMailIn .2s ease-out}
+.vf-mail-icon{font-size:54px;line-height:1;margin-bottom:8px;animation:vfUnreadShake 8s ease-in-out infinite}
+.vf-mail-title{font-size:18px;font-weight:950;margin-bottom:6px}
+.vf-mail-from{font-size:14px;font-weight:900;color:var(--vf-cyan);margin-bottom:8px}
+.vf-mail-text{max-height:86px;overflow:hidden;color:var(--vf-muted);font-size:13px;line-height:1.35;margin-bottom:14px;word-break:break-word}
+.vf-mail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@keyframes vfMailIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes vfFade{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
-@media(max-width:430px){.vf-app{padding:12px}}
+@media(max-width:430px){.vf-app{padding:12px}.vf-modal{max-width:none}.vf-modal-ov{padding:12px}.vf-chat-log{height:52vh;min-height:220px}}
