@@ -387,6 +387,9 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     let startedAt = 0;
     let muted = false;
     let closed = false;
+    let signalFails = 0;
+    let roomFails = 0;
+    let cleanupObserver = null;
 
     const ov = openModal(`
       <div class="vf-modal-head vf-chat-head">
@@ -453,9 +456,15 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       }, 1000);
     };
 
-    const sendSignal = (type, data) => {
-      if (!roomId || !roomSecret || !remotePeerId) return;
-      return core.sendVoiceSignal({ roomId, roomSecret, fromPeerId: myPeerId, toPeerId: remotePeerId, type, data }).catch(() => null);
+    const sendSignal = async (type, data) => {
+      if (!roomId || !roomSecret || !remotePeerId || closed) return null;
+      try {
+        return await core.sendVoiceSignal({ roomId, roomSecret, fromPeerId: myPeerId, toPeerId: remotePeerId, type, data });
+      } catch (err) {
+        signalFails++;
+        if (signalFails >= 4) setState('Ошибка сигналинга', 'Не удаётся обменяться WebRTC-данными. Попробуйте перезвонить.');
+        return null;
+      }
     };
 
     const createPeer = async () => {
@@ -496,53 +505,91 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     const pollSignals = () => {
       clearInterval(pollTimer);
       pollTimer = setInterval(async () => {
-        if (closed || !roomId || !roomSecret) return;
-        const items = await core.pollVoiceSignals({ roomId, roomSecret, peerId: myPeerId }).catch(() => []);
+        if (closed || document.hidden || !roomId || !roomSecret) return;
+
+        let items = [];
+        try {
+          items = await core.pollVoiceSignals({ roomId, roomSecret, peerId: myPeerId });
+          signalFails = 0;
+        } catch (err) {
+          signalFails++;
+          if (signalFails === 2) setState('Сигналинг нестабилен', 'Пробуем восстановить обмен данными...');
+          if (signalFails >= 8) {
+            clearInterval(pollTimer);
+            setState('Сигналинг недоступен', 'Звонок не может продолжиться. Закройте окно и попробуйте снова.');
+          }
+          return;
+        }
+
         for (const msg of items) {
-          if (!pc && ['offer', 'answer', 'candidate'].includes(msg.type)) await createPeer();
-          if (msg.fromPeerId) remotePeerId = msg.fromPeerId;
+          try {
+            if (!pc && ['offer', 'answer', 'candidate'].includes(msg.type)) await createPeer();
+            if (msg.fromPeerId) remotePeerId = msg.fromPeerId;
 
-          if (msg.type === 'offer') {
-            setState('Получено предложение соединения', 'Готовим ответ собеседнику.');
-            await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await sendSignal('answer', pc.localDescription);
-          }
+            if (msg.type === 'offer') {
+              setState('Получено предложение соединения', 'Готовим ответ собеседнику.');
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              await sendSignal('answer', pc.localDescription);
+            }
 
-          if (msg.type === 'answer') {
-            setState('Собеседник ответил', 'Завершаем установку WebRTC.');
-            await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
-          }
+            if (msg.type === 'answer') {
+              setState('Собеседник ответил', 'Завершаем установку WebRTC.');
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+            }
 
-          if (msg.type === 'candidate') {
-            await pc.addIceCandidate(new RTCIceCandidate(msg.data)).catch(() => null);
-          }
+            if (msg.type === 'candidate' && pc?.remoteDescription) {
+              await pc.addIceCandidate(new RTCIceCandidate(msg.data)).catch(() => null);
+            }
 
-          if (msg.type === 'bye') {
-            setState('Собеседник завершил звонок', 'Соединение закрыто.');
-            await finish('ended_by_friend', false);
+            if (msg.type === 'bye') {
+              setState('Собеседник завершил звонок', 'Соединение закрыто.');
+              await finish('ended_by_friend', false);
+            }
+          } catch (err) {
+            signalFails++;
+            setState('Ошибка WebRTC-сигнала', 'Получен некорректный сигнал. Пробуем продолжить.');
           }
         }
-      }, 1200);
+      }, 1500);
     };
 
     const waitAnswerAndOffer = () => {
       clearInterval(roomTimer);
       roomTimer = setInterval(async () => {
-        if (closed || !roomId || !roomSecret) return;
-        const res = await core.getRoom(roomId).catch(() => null);
-        const room = res?.room;
+        if (closed || document.hidden || !roomId || !roomSecret) return;
+
+        let room = null;
+        try {
+          const res = await core.getRoom(roomId);
+          room = res?.room || null;
+          roomFails = 0;
+        } catch {
+          roomFails++;
+          if (roomFails === 2) setState('Ожидаем комнату', 'Сервер временно не отвечает, продолжаем ожидание...');
+          if (roomFails >= 8) {
+            clearInterval(roomTimer);
+            setState('Комната звонка недоступна', 'Попробуйте завершить звонок и позвонить снова.');
+          }
+          return;
+        }
+
         if (!room?.guestPeerId || room.status === 'waiting') return;
 
         clearInterval(roomTimer);
         remotePeerId = room.guestPeerId;
         setState('Друг ответил', 'Создаём защищённое голосовое соединение.');
-        await createPeer();
-        const offer = await pc.createOffer({ offerToReceiveAudio: true });
-        await pc.setLocalDescription(offer);
-        await sendSignal('offer', pc.localDescription);
-      }, 1500);
+
+        try {
+          await createPeer();
+          const offer = await pc.createOffer({ offerToReceiveAudio: true });
+          await pc.setLocalDescription(offer);
+          await sendSignal('offer', pc.localDescription);
+        } catch {
+          setState('Не удалось создать звонок', 'Проверьте разрешение микрофона и попробуйте снова.');
+        }
+      }, 1800);
     };
 
     const startOutgoing = async () => {
@@ -568,19 +615,32 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       setState('Ожидаем голосовой канал', 'Ждём WebRTC offer от звонящего.');
     };
 
-    const finish = async (status = 'ended', ask = true) => {
-      if (ask && !confirm('Завершить звонок?')) return;
+    const cleanupVoice = () => {
+      if (closed) return;
       closed = true;
       clearInterval(pollTimer);
       clearInterval(roomTimer);
       clearInterval(tickTimer);
-      await sendSignal('bye', { at: Date.now() });
+      try { cleanupObserver?.disconnect?.(); } catch {}
       try { pc?.close?.(); } catch {}
       try { localStream?.getTracks?.().forEach(t => t.stop()); } catch {}
+      pc = null;
+      localStream = null;
+    };
+
+    const finish = async (status = 'ended', ask = true) => {
+      if (ask && !confirm('Завершить звонок?')) return;
+      await sendSignal('bye', { at: Date.now() });
       const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+      cleanupVoice();
       await core.endVoiceCall({ friendId, callId, roomId, status, durationSec }).catch(() => null);
       ov.vfClose?.();
     };
+
+    cleanupObserver = new MutationObserver(() => {
+      if (!document.body.contains(ov)) cleanupVoice();
+    });
+    cleanupObserver.observe(document.body, { childList: true, subtree: true });
 
     ov.querySelector('#vf-voice-close').onclick = () => finish('closed', true);
     ov.querySelector('#vf-voice-cancel').onclick = () => finish('cancelled', true);
