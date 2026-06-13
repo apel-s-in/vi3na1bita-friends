@@ -234,6 +234,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     let lastAt = 0;
     let timer = 0;
     const seen = new Set();
+    const rowsByMsgId = new Map();
 
     const ov = openModal(`
       <div class="vf-modal-head vf-chat-head">
@@ -257,9 +258,25 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     const input = ov.querySelector('input');
     const panel = ov.querySelector('.vf-chat-settings-panel');
 
+    const updateStatuses = msg => {
+      if (!msg.msgId) return false;
+      const row = rowsByMsgId.get(msg.msgId);
+      const box = row?.querySelector?.('.vf-chat-statuses');
+      if (!box) return false;
+      box.innerHTML = `
+        <div>Отправлено: ${fmtStatusTime(msg.createdAt)}</div>
+        <div>Доставлено: ${fmtStatusTime(msg.deliveredAt)}</div>
+        <div>Прочитано: ${fmtStatusTime(msg.readAt)}</div>
+      `;
+      return true;
+    };
+
     const append = msg => {
       const key = msg.msgId || `${msg.fromFriendId}:${msg.createdAt}:${msg.text}`;
-      if (seen.has(key)) return;
+      if (seen.has(key)) {
+        updateStatuses(msg);
+        return;
+      }
       seen.add(key);
 
       const mine = msg.fromFriendId === core.identity?.friendId;
@@ -276,6 +293,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         <div class="vf-chat-bubble">${esc(msg.text || '')}</div>
         <div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>
       `;
+      if (msg.msgId) rowsByMsgId.set(msg.msgId, row);
       log.append(row);
       log.scrollTop = log.scrollHeight;
     };
@@ -285,7 +303,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       try {
         const items = await core.getChatMessages({ friendId, after: lastAt });
         items.forEach(msg => {
-          lastAt = Math.max(lastAt, Number(msg.createdAt || 0));
+          lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
           append(msg);
         });
       } catch {}
@@ -352,6 +370,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     load();
     timer = setInterval(load, 3500);
     setTimeout(() => input.focus?.(), 80);
+    return true;
   };
 
   const openAddModal = async () => {
