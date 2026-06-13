@@ -19,7 +19,7 @@ const fmtChatTime = ts => {
 
 const fmtStatusTime = ts => Number(ts || 0) > 0 ? fmtChatTime(ts) : '—';
 
-export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, onUnreadClick = null, onChatOpened = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null } = {}) => {
   if (!root) return null;
 
   const el = document.createElement('section');
@@ -39,7 +39,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     <div class="vf-head">
       <h2>Друзья</h2>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="vf-btn vf-btn-add vf-sec" type="button" data-act="notify" title="Включить системные уведомления">🔔 Увед.</button>
+        <button class="vf-btn vf-btn-add ${typeof getWebPushEnabled === 'function' && getWebPushEnabled() ? 'vf-notify-on' : 'vf-notify-off'}" type="button" data-act="notify" title="${typeof getWebPushEnabled === 'function' && getWebPushEnabled() ? 'Системные уведомления включены' : 'Системные уведомления выключены'}">${typeof getWebPushEnabled === 'function' && getWebPushEnabled() ? '🔔 Увед.' : '🔕 Увед.'}</button>
         <button class="vf-btn vf-btn-add" type="button" data-act="add">＋ Добавить</button>
       </div>
     </div>
@@ -104,7 +104,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         e.stopPropagation();
         const friendId = btn.dataset.unreadChat;
         if (typeof onUnreadClick === 'function') onUnreadClick(friendId);
-        else openChat(friendId);
+        else void openChat(friendId);
       });
     });
 
@@ -207,8 +207,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     ov.querySelector('[data-a="chat"]')?.addEventListener('click', () => {
       ov.vfClose?.();
-      onChatOpened?.(friendId);
-      openChatModal(friendId, name);
+      void openChat(friendId);
     });
     ov.querySelector('[data-a="push"]')?.addEventListener('click', async () => {
       ov.remove();
@@ -472,9 +471,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const p = await core.getProfile(friendId);
       if (p?.displayName) name = p.displayName;
     } catch {}
-    onChatOpened?.(friendId);
-    openChatModal(friendId, name);
-    return true;
+
+    const opened = openChatModal(friendId, name);
+    if (opened !== false) onChatOpened?.(friendId);
+    return opened !== false;
   };
 
   return { refresh, openChat };
