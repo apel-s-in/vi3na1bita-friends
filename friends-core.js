@@ -172,6 +172,66 @@ export class FriendsCore {
     });
   }
 
+  async getRtcConfig() {
+    return this._req('rtc_config', {});
+  }
+
+  async getVoiceHistory(friendId) {
+    const res = await this._req('voice_history', { friendId: safe(friendId) });
+    return Array.isArray(res.items) ? res.items : [];
+  }
+
+  async createVoiceCall({ toFriendId, peerId } = {}) {
+    return this._req('voice_call_create', {
+      toFriendId: safe(toFriendId),
+      peerId: safe(peerId)
+    });
+  }
+
+  async joinVoiceCall({ friendId, callId = '', roomId, roomSecret, peerId } = {}) {
+    return this._req('voice_call_join', {
+      friendId: safe(friendId),
+      callId: safe(callId),
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret),
+      peerId: safe(peerId)
+    });
+  }
+
+  async endVoiceCall({ friendId, callId = '', roomId = '', status = 'ended', durationSec = 0 } = {}) {
+    return this._req('voice_call_end', {
+      friendId: safe(friendId),
+      callId: safe(callId),
+      roomId: safe(roomId),
+      status: safe(status),
+      durationSec: Number(durationSec || 0)
+    });
+  }
+
+  async getRoom(roomId) {
+    return this._req('room_get', { roomId: safe(roomId) });
+  }
+
+  async sendVoiceSignal({ roomId, roomSecret, fromPeerId, toPeerId, type, data } = {}) {
+    return this._req('signal_send', {
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret),
+      fromPeerId: safe(fromPeerId),
+      toPeerId: safe(toPeerId),
+      type: safe(type),
+      payload: data
+    });
+  }
+
+  async pollVoiceSignals({ roomId, roomSecret, peerId } = {}) {
+    const res = await this._req('signal_poll', {
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret),
+      peerId: safe(peerId)
+    });
+    return Array.isArray(res.messages) ? res.messages : [];
+  }
+
   async removeFriend(friendId) {
     this._cache.at = 0;
     return this._req('friend_remove', { targetId: safe(friendId) });
