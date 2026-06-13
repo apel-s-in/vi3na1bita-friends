@@ -7,6 +7,8 @@
 .vf-head h2{margin:0;font-size:22px;font-weight:950}
 .vf-btn{min-height:44px;border:0;border-radius:14px;padding:0 14px;background:linear-gradient(135deg,var(--vf-red),#8b5cff);color:#fff;font-weight:950;cursor:pointer;box-shadow:0 10px 24px rgba(255,49,89,.18)}
 .vf-btn.vf-sec{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);box-shadow:none}
+.vf-btn.vf-notify-on{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);box-shadow:none}
+.vf-btn.vf-notify-off{background:rgba(255,49,89,.12);border:1px solid rgba(255,49,89,.35);box-shadow:none;color:#ffd7df}
 .vf-btn.vf-danger{background:rgba(255,49,89,.16);border:1px solid rgba(255,49,89,.4);box-shadow:none;color:#ffd7df}
 .vf-btn-add{min-height:38px;padding:0 12px;font-size:13px}
 .vf-list{display:grid;gap:8px}
