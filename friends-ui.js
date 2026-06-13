@@ -7,6 +7,16 @@ const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
 
+const fmtChatTime = ts => {
+  const d = new Date(Number(ts || Date.now()));
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+};
+
 export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, onChatOpened = null } = {}) => {
   if (!root) return null;
 
@@ -39,7 +49,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         const online = !!presence[fid]?.online;
         const unread = typeof getUnread === 'function' ? Number(getUnread(fid) || 0) : 0;
         return `
-          <button class="vf-friend" type="button" data-friend="${esc(fid)}">
+          <button class="vf-friend" type="button" data-friend="${esc(fid)}" data-name="${esc(name)}">
             <span class="vf-ava">${avatar ? `<img src="${esc(avatar)}" alt="">` : '👤'}</span>
             <b>${esc(name)}${unread ? ` <span class="vf-unread" title="Новых сообщений: ${unread}">💌${unread > 1 ? `<i>${unread > 9 ? '9+' : unread}</i>` : ''}</span>` : ''}</b>
             <small class="${online ? 'is-online' : ''}">${online ? 'онлайн' : 'не в сети'}</small>
@@ -83,7 +93,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       toast(res?.ok ? 'Системные уведомления включены' : `Уведомления не включены: ${res?.reason || 'ошибка'}`);
     });
     el.querySelectorAll('[data-friend]').forEach(btn => {
-      btn.addEventListener('click', () => openFriendActions(btn.dataset.friend, btn.querySelector('b')?.textContent || 'Друг'));
+      btn.addEventListener('click', () => openFriendActions(btn.dataset.friend, btn.dataset.name || 'Друг'));
     });
   };
 
@@ -91,8 +101,20 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     const ov = document.createElement('div');
     ov.className = 'vf-modal-ov';
     ov.innerHTML = `<div class="vf-modal">${html}</div>`;
+    document.documentElement.classList.add('vf-modal-lock');
+    document.body.classList.add('vf-modal-lock');
     el.append(ov);
-    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+    const close = () => {
+      ov.remove();
+      if (!document.querySelector('.vf-modal-ov')) {
+        document.documentElement.classList.remove('vf-modal-lock');
+        document.body.classList.remove('vf-modal-lock');
+      }
+    };
+
+    ov.vfClose = close;
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
     return ov;
   };
 
@@ -193,30 +215,43 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     });
   };
 
-  const openChatModal = friendId => {
+  const openChatModal = (friendId, name = 'Друг') => {
     let lastAt = 0;
     let timer = 0;
+    const seen = new Set();
 
     const ov = openModal(`
-      <div class="vf-modal-head" style="justify-content:space-between">
-        <b>Чат</b>
-        <button class="vf-btn vf-sec" id="vf-chat-close" style="min-height:30px;padding:0 10px;font-size:16px;box-shadow:none">✕</button>
+      <div class="vf-modal-head vf-chat-head">
+        <button class="vf-btn vf-sec vf-chat-gear" type="button" id="vf-chat-settings" title="Настройки">⚙</button>
+        <b>Чат с ${esc(name)}</b>
+        <button class="vf-btn vf-sec vf-chat-close" type="button" id="vf-chat-close" title="Закрыть">✕</button>
       </div>
-      <div class="vf-chat-log" style="min-height:180px;max-height:260px;overflow:auto;display:grid;gap:6px;text-align:left;margin-bottom:10px;padding:10px;border-radius:14px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08)"></div>
-      <form class="vf-chat-form" style="display:grid;grid-template-columns:1fr auto;gap:8px">
-        <input type="text" maxlength="500" placeholder="Сообщение..." autocomplete="off" style="min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:0 12px;outline:none">
-        <button class="vf-btn" type="submit" style="min-height:40px;box-shadow:none">▶</button>
+      <div class="vf-chat-settings-panel" hidden>
+        <button class="vf-btn vf-danger" type="button" id="vf-chat-clear">Очистить чат</button>
+      </div>
+      <div class="vf-chat-log" aria-live="polite"></div>
+      <form class="vf-chat-form">
+        <input type="text" maxlength="500" placeholder="Сообщение..." autocomplete="off">
+        <button class="vf-btn" type="submit">▶</button>
       </form>
     `);
 
     const log = ov.querySelector('.vf-chat-log');
     const input = ov.querySelector('input');
+    const panel = ov.querySelector('.vf-chat-settings-panel');
 
     const append = msg => {
+      const key = msg.msgId || `${msg.fromFriendId}:${msg.createdAt}:${msg.text}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
       const mine = msg.fromFriendId === core.identity?.friendId;
       const row = document.createElement('div');
-      row.style.cssText = `justify-self:${mine ? 'end' : 'start'};max-width:86%;padding:8px 10px;border-radius:12px;background:${mine ? 'linear-gradient(135deg,var(--vf-red),#8b5cff)' : 'rgba(255,255,255,.08)'};font-size:13px;line-height:1.3;color:#fff`;
-      row.textContent = msg.text || '';
+      row.className = `vf-chat-msg ${mine ? 'is-mine' : 'is-friend'}`;
+      row.innerHTML = `
+        <div class="vf-chat-bubble">${esc(msg.text || '')}</div>
+        <div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>
+      `;
       log.append(row);
       log.scrollTop = log.scrollHeight;
     };
@@ -232,9 +267,28 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       } catch {}
     };
 
-    ov.querySelector('#vf-chat-close').onclick = () => {
+    const close = () => {
       clearInterval(timer);
-      ov.remove();
+      ov.vfClose?.();
+    };
+
+    ov.querySelector('#vf-chat-close').onclick = close;
+    ov.querySelector('#vf-chat-settings').onclick = () => {
+      panel.hidden = !panel.hidden;
+    };
+
+    ov.querySelector('#vf-chat-clear').onclick = async () => {
+      if (!confirm('Очистить историю этого чата?')) return;
+      try {
+        await core.clearChat(friendId);
+        lastAt = Date.now();
+        seen.clear();
+        log.innerHTML = '';
+        panel.hidden = true;
+        toast('Чат очищен');
+      } catch (err) {
+        toast(`Ошибка очистки: ${err.message}`);
+      }
     };
 
     ov.querySelector('.vf-chat-form').onsubmit = async e => {
@@ -246,7 +300,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         const res = await core.sendChatMessage({ toFriendId: friendId, text });
         const createdAt = res.createdAt || Date.now();
         lastAt = Math.max(lastAt, Number(createdAt || 0));
-        append({ fromFriendId: core.identity?.friendId, text, createdAt });
+        append({ msgId: res.msgId || `local-${createdAt}`, fromFriendId: core.identity?.friendId, text, createdAt });
         toast(res?.webPush?.sent > 0 ? 'Сообщение отправлено · push доставлен' : 'Сообщение отправлено');
       } catch (err) {
         toast(`Ошибка отправки: ${err.message}`);
@@ -266,6 +320,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     load();
     timer = setInterval(load, 3500);
+    setTimeout(() => input.focus?.(), 80);
   };
 
   const openAddModal = async () => {
@@ -378,5 +433,17 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     }
   };
 
-  return { refresh };
+  const openChat = async friendId => {
+    if (!friendId) return false;
+    let name = 'Друг';
+    try {
+      const p = await core.getProfile(friendId);
+      if (p?.displayName) name = p.displayName;
+    } catch {}
+    onChatOpened?.(friendId);
+    openChatModal(friendId, name);
+    return true;
+  };
+
+  return { refresh, openChat };
 };
