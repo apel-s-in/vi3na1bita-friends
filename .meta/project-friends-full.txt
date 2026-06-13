@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-13 13:54:12 UTC
+Сгенерировано: 2026-06-13 13:56:39 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1017,7 +1017,7 @@ const fmtChatTime = ts => {
 
 const fmtStatusTime = ts => Number(ts || 0) > 0 ? fmtChatTime(ts) : '—';
 
-export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
   if (!root) return null;
 
   const el = document.createElement('section');
@@ -1218,7 +1218,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     });
     ov.querySelector('[data-a="voice"]')?.addEventListener('click', () => {
       ov.vfClose?.();
-      toast('Голос работает внутри сетевого боя после P2P-подключения');
+      void openVoiceCall(friendId);
     });
 
     ov.querySelector('[data-a="remove"]')?.addEventListener('click', async () => {
@@ -1371,6 +1371,241 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     return true;
   };
 
+  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => {
+    let pc = null;
+    let localStream = null;
+    let roomId = incoming?.roomId || '';
+    let roomSecret = incoming?.roomSecret || incoming?.key || '';
+    let callId = incoming?.callId || '';
+    let myPeerId = `${core.identity?.friendId}:voice:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    let remotePeerId = '';
+    let pollTimer = 0;
+    let roomTimer = 0;
+    let tickTimer = 0;
+    let startedAt = 0;
+    let muted = false;
+    let closed = false;
+
+    const ov = openModal(`
+      <div class="vf-modal-head vf-chat-head">
+        <button class="vf-btn vf-sec vf-chat-gear" type="button" id="vf-voice-info" title="Информация">ⓘ</button>
+        <b>Звонок · ${esc(name)}</b>
+        <button class="vf-btn vf-sec vf-chat-close" type="button" id="vf-voice-close" title="Закрыть">✕</button>
+      </div>
+      <div class="vf-voice-log" aria-live="polite"></div>
+      <div class="vf-voice-state">
+        <div class="vf-voice-icon">🎙</div>
+        <b id="vf-voice-status">${incoming ? 'Входящий звонок' : 'Готов к звонку'}</b>
+        <small id="vf-voice-detail">${incoming ? 'Нажмите «Ответить», чтобы подключить микрофон.' : 'Нажмите «Позвонить», чтобы отправить вызов.'}</small>
+        <div class="vf-voice-timer" id="vf-voice-timer">00:00</div>
+      </div>
+      <audio id="vf-voice-audio" autoplay playsinline></audio>
+      <div class="vf-voice-actions">
+        <button class="vf-btn vf-danger" type="button" id="vf-voice-cancel">Отмена</button>
+        <button class="vf-btn vf-sec" type="button" id="vf-voice-mute">🎙</button>
+        <button class="vf-btn" type="button" id="vf-voice-call">${incoming ? 'Ответить' : 'Позвонить'}</button>
+      </div>
+    `);
+
+    ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal', 'vf-voice-modal');
+
+    const log = ov.querySelector('.vf-voice-log');
+    const statusEl = ov.querySelector('#vf-voice-status');
+    const detailEl = ov.querySelector('#vf-voice-detail');
+    const timerEl = ov.querySelector('#vf-voice-timer');
+    const audioEl = ov.querySelector('#vf-voice-audio');
+    const callBtn = ov.querySelector('#vf-voice-call');
+    const muteBtn = ov.querySelector('#vf-voice-mute');
+
+    const setState = (title, detail = '') => {
+      statusEl.textContent = title;
+      detailEl.textContent = detail;
+      const row = document.createElement('div');
+      row.className = 'vf-voice-row';
+      row.innerHTML = `<b>${esc(title)}</b><small>${esc(detail)}</small><i>${fmtChatTime(Date.now())}</i>`;
+      log.append(row);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    const renderHistory = async () => {
+      try {
+        const items = await core.getVoiceHistory(friendId);
+        if (!items.length) return;
+        items.forEach(x => {
+          const mine = x.fromPlayerId === core.identity?.friendId;
+          const row = document.createElement('div');
+          row.className = 'vf-voice-row is-history';
+          row.innerHTML = `<b>${mine ? 'Исходящий' : 'Входящий'} · ${esc(x.status || 'звонок')}</b><small>${Number(x.durationSec || 0) ? `${Math.round(x.durationSec)} сек.` : 'без разговора'}</small><i>${fmtChatTime(x.createdAt)}</i>`;
+          log.append(row);
+        });
+      } catch {}
+    };
+
+    const fmtTimer = sec => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+
+    const startTimer = () => {
+      startedAt = startedAt || Date.now();
+      clearInterval(tickTimer);
+      tickTimer = setInterval(() => {
+        timerEl.textContent = fmtTimer(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+      }, 1000);
+    };
+
+    const sendSignal = (type, data) => {
+      if (!roomId || !roomSecret || !remotePeerId) return;
+      return core.sendVoiceSignal({ roomId, roomSecret, fromPeerId: myPeerId, toPeerId: remotePeerId, type, data }).catch(() => null);
+    };
+
+    const createPeer = async () => {
+      if (pc) return pc;
+      setState('Запрашиваем микрофон', 'Браузер может показать системное окно разрешения.');
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false
+      });
+
+      const cfg = await core.getRtcConfig().catch(() => ({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }));
+      pc = new RTCPeerConnection({ iceServers: cfg.iceServers || [] });
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      pc.ontrack = e => {
+        audioEl.srcObject = e.streams[0];
+        audioEl.play?.().catch(() => null);
+        setState('Голос подключён', 'Вы слышите собеседника. Таймер разговора запущен.');
+        startTimer();
+      };
+      pc.onicecandidate = e => {
+        if (e.candidate) sendSignal('candidate', e.candidate.toJSON ? e.candidate.toJSON() : e.candidate);
+      };
+      pc.onconnectionstatechange = () => {
+        const s = pc.connectionState;
+        if (s === 'connecting') setState('Соединяем голосовой канал', 'Проверяем прямой маршрут/STUN/TURN.');
+        if (s === 'connected') {
+          setState('Соединение установлено', 'Голосовой канал активен.');
+          startTimer();
+        }
+        if (s === 'failed') setState('Соединение не удалось', 'Попробуйте ещё раз. Для мобильных сетей нужен TURN.');
+        if (s === 'disconnected') setState('Связь временно прервалась', 'Ожидаем восстановление WebRTC.');
+      };
+
+      return pc;
+    };
+
+    const pollSignals = () => {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        if (closed || !roomId || !roomSecret) return;
+        const items = await core.pollVoiceSignals({ roomId, roomSecret, peerId: myPeerId }).catch(() => []);
+        for (const msg of items) {
+          if (!pc && ['offer', 'answer', 'candidate'].includes(msg.type)) await createPeer();
+          if (msg.fromPeerId) remotePeerId = msg.fromPeerId;
+
+          if (msg.type === 'offer') {
+            setState('Получено предложение соединения', 'Готовим ответ собеседнику.');
+            await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await sendSignal('answer', pc.localDescription);
+          }
+
+          if (msg.type === 'answer') {
+            setState('Собеседник ответил', 'Завершаем установку WebRTC.');
+            await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+          }
+
+          if (msg.type === 'candidate') {
+            await pc.addIceCandidate(new RTCIceCandidate(msg.data)).catch(() => null);
+          }
+
+          if (msg.type === 'bye') {
+            setState('Собеседник завершил звонок', 'Соединение закрыто.');
+            await finish('ended_by_friend', false);
+          }
+        }
+      }, 1200);
+    };
+
+    const waitAnswerAndOffer = () => {
+      clearInterval(roomTimer);
+      roomTimer = setInterval(async () => {
+        if (closed || !roomId || !roomSecret) return;
+        const res = await core.getRoom(roomId).catch(() => null);
+        const room = res?.room;
+        if (!room?.guestPeerId || room.status === 'waiting') return;
+
+        clearInterval(roomTimer);
+        remotePeerId = room.guestPeerId;
+        setState('Друг ответил', 'Создаём защищённое голосовое соединение.');
+        await createPeer();
+        const offer = await pc.createOffer({ offerToReceiveAudio: true });
+        await pc.setLocalDescription(offer);
+        await sendSignal('offer', pc.localDescription);
+      }, 1500);
+    };
+
+    const startOutgoing = async () => {
+      callBtn.disabled = true;
+      setState('Создаём звонок', 'Готовим комнату и отправляем push-вызов другу.');
+      const res = await core.createVoiceCall({ toFriendId: friendId, peerId: myPeerId });
+      callId = res.callId;
+      roomId = res.roomId;
+      roomSecret = res.roomSecret;
+      remotePeerId = res.guestPeerId || '';
+      setState('Ожидаем ответа', 'Другу отправлен входящий звонок. Если приложение закрыто — придёт системное уведомление.');
+      pollSignals();
+      waitAnswerAndOffer();
+    };
+
+    const answerIncoming = async () => {
+      callBtn.disabled = true;
+      setState('Отвечаем на звонок', 'Подключаем микрофон и присоединяемся к комнате.');
+      const res = await core.joinVoiceCall({ friendId, callId, roomId, roomSecret, peerId: myPeerId });
+      remotePeerId = res.hostPeerId;
+      await createPeer();
+      pollSignals();
+      setState('Ожидаем голосовой канал', 'Ждём WebRTC offer от звонящего.');
+    };
+
+    const finish = async (status = 'ended', ask = true) => {
+      if (ask && !confirm('Завершить звонок?')) return;
+      closed = true;
+      clearInterval(pollTimer);
+      clearInterval(roomTimer);
+      clearInterval(tickTimer);
+      await sendSignal('bye', { at: Date.now() });
+      try { pc?.close?.(); } catch {}
+      try { localStream?.getTracks?.().forEach(t => t.stop()); } catch {}
+      const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+      await core.endVoiceCall({ friendId, callId, roomId, status, durationSec }).catch(() => null);
+      ov.vfClose?.();
+    };
+
+    ov.querySelector('#vf-voice-close').onclick = () => finish('closed', true);
+    ov.querySelector('#vf-voice-cancel').onclick = () => finish('cancelled', true);
+    ov.querySelector('#vf-voice-info').onclick = () => toast('Для стабильной связи в мобильных сетях нужен TURN-сервер');
+    callBtn.onclick = () => incoming ? answerIncoming() : startOutgoing();
+    muteBtn.onclick = () => {
+      muted = !muted;
+      localStream?.getAudioTracks?.().forEach(t => { t.enabled = !muted; });
+      muteBtn.textContent = muted ? '🔇' : '🎙';
+      setState(muted ? 'Микрофон выключен' : 'Микрофон включён', muted ? 'Собеседник вас не слышит.' : 'Собеседник снова вас слышит.');
+    };
+
+    renderHistory();
+    onVoiceOpened?.(friendId);
+    return true;
+  };
+
+  const openVoiceCall = async (friendId, incoming = null) => {
+    if (!friendId) return false;
+    let name = 'Друг';
+    try {
+      const p = await core.getProfile(friendId);
+      if (p?.displayName) name = p.displayName;
+    } catch {}
+    return openVoiceCallModal(friendId, name, incoming);
+  };
+
   const openAddModal = async () => {
     const ov = openModal(`
       <div class="vf-modal-head" style="justify-content:space-between">
@@ -1494,7 +1729,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     return opened !== false;
   };
 
-  return { refresh, openChat };
+  return { refresh, openChat, openVoiceCall };
 };
 
 //=================================================
