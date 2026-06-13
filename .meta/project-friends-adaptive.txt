@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-13 10:49:55 UTC
+Сгенерировано: 2026-06-13 11:32:06 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -824,6 +824,20 @@ export class FriendsCore {
 
   async clearChat(friendId) {
     return this._req('chat_clear', { friendId: safe(friendId) });
+  }
+
+  async markChatDelivered({ friendId, msgId = '' } = {}) {
+    return this._req('chat_delivery', {
+      friendId: safe(friendId),
+      msgId: safe(msgId)
+    });
+  }
+
+  async markChatRead({ friendId, msgId = '' } = {}) {
+    return this._req('chat_read', {
+      friendId: safe(friendId),
+      msgId: safe(msgId)
+    });
   }
 
   async removeFriend(friendId) {
