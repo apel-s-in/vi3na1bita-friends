@@ -154,6 +154,10 @@ export class FriendsCore {
     return Array.isArray(res.items) ? res.items : [];
   }
 
+  async clearChat(friendId) {
+    return this._req('chat_clear', { friendId: safe(friendId) });
+  }
+
   async removeFriend(friendId) {
     this._cache.at = 0;
     return this._req('friend_remove', { targetId: safe(friendId) });
