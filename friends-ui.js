@@ -18,6 +18,7 @@ const fmtChatTime = ts => {
 };
 
 const fmtStatusTime = ts => Number(ts || 0) > 0 ? fmtChatTime(ts) : '—';
+const REACTION_EMOJIS = ['❤️', '👍', '🔥', '👏', '😱', '👎', '🥰'];
 
 export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
   if (!root) return null;
@@ -237,6 +238,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     let loadBusy = false;
     let loadFails = 0;
     let replyTo = null;
+    let sendBusy = false;
     const seen = new Set();
     const rowsByMsgId = new Map();
     const messagesById = new Map();
@@ -296,26 +298,54 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     const showStatus = msg => alert(statusDetails(msg));
 
-    const updateStatuses = msg => {
+    const normalizeMyReactions = msg => {
+      let mine = msg?.reactions?.[core.identity?.friendId];
+      if (typeof mine === 'string') mine = mine ? [mine] : [];
+      return Array.isArray(mine) ? mine.filter(Boolean).slice(0, 3) : [];
+    };
+
+    const renderQuoteHtml = msg => msg.replyText
+      ? `<div class="vf-chat-quote"><span>↩ ответ</span><b>${esc(msg.replyText)}</b></div>`
+      : '';
+
+    const renderReactions = reactions => {
+      const entries = Object.entries(reactions || {}).flatMap(([uid, raw]) => {
+        const arr = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).filter(Boolean).slice(0, 3);
+        return arr.map(emoji => ({ uid, emoji }));
+      });
+      if (!entries.length) return '';
+      return `<div class="vf-chat-reactions">${entries.map(x => `<span class="${x.uid === core.identity?.friendId ? 'is-my' : 'is-peer'}">${esc(x.emoji)}</span>`).join('')}</div>`;
+    };
+
+    const updateMessage = msg => {
       if (!msg.msgId) return false;
       const row = rowsByMsgId.get(msg.msgId);
       if (!row) return false;
-      messagesById.set(msg.msgId, { ...(messagesById.get(msg.msgId) || {}), ...msg });
-      const cur = messagesById.get(msg.msgId);
+
+      const cur = { ...(messagesById.get(msg.msgId) || {}), ...msg };
+      messagesById.set(msg.msgId, cur);
+
+      const bubble = row.querySelector('.vf-chat-bubble');
+      if (bubble) bubble.innerHTML = `${renderQuoteHtml(cur)}<span class="vf-chat-text">${esc(cur.text || '')}</span>`;
+
+      row.querySelector('.vf-chat-reactions')?.remove();
+      const reactionsHtml = renderReactions(cur.reactions);
+      if (reactionsHtml) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = reactionsHtml;
+        const before = row.querySelector('.vf-chat-statusline,.vf-chat-time');
+        row.insertBefore(tmp.firstElementChild, before || null);
+      }
+
       row.querySelector('.vf-chat-status-btn')?.replaceChildren(document.createTextNode(statusLabel(cur)));
       row.querySelector('.vf-chat-retry')?.toggleAttribute('hidden', cur.localStatus !== 'failed');
       return true;
     };
 
-    const renderReactions = reactions => {
-      const vals = Object.values(reactions || {}).filter(Boolean);
-      return vals.length ? `<div class="vf-chat-reactions">${vals.map(esc).join(' ')}</div>` : '';
-    };
-
     const append = msg => {
       const key = msg.msgId || `${msg.fromFriendId}:${msg.createdAt}:${msg.text}`;
-      if (seen.has(key)) {
-        updateStatuses(msg);
+      if (seen.has(key) || rowsByMsgId.has(msg.msgId)) {
+        updateMessage(msg);
         return;
       }
       seen.add(key);
@@ -327,8 +357,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       row.dataset.msgId = msg.msgId || '';
       row.innerHTML = `
         <div class="vf-chat-bubble" role="button" tabindex="0">
-          ${msg.replyText ? `<div class="vf-chat-quote">${esc(msg.replyText)}</div>` : ''}
-          ${esc(msg.text || '')}
+          ${renderQuoteHtml(msg)}<span class="vf-chat-text">${esc(msg.text || '')}</span>
         </div>
         ${renderReactions(msg.reactions)}
         ${mine ? `
@@ -374,7 +403,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     };
 
     const sendText = async text => {
-      const localId = `local-${Date.now()}`;
+      const localId = `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const localMsg = {
         msgId: localId,
         fromFriendId: core.identity?.friendId,
@@ -397,7 +426,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           toFriendId: friendId,
           text,
           replyToMsgId: sentReply?.msgId || '',
-          replyText: sentReply?.text || ''
+          replyText: sentReply?.text || '',
+          clientMsgId: localId
         });
         const createdAt = res.createdAt || Date.now();
         lastAt = Math.max(lastAt, Number(createdAt || 0));
@@ -408,16 +438,27 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
           localStatus: ''
         };
+        const localRow = rowsByMsgId.get(localId);
+        const realRow = rowsByMsgId.get(realMsg.msgId);
+
+        if (realRow && localRow && realRow !== localRow) {
+          localRow.remove();
+        } else if (localRow) {
+          localRow.dataset.msgId = realMsg.msgId;
+          rowsByMsgId.set(realMsg.msgId, localRow);
+        }
+
+        seen.add(realMsg.msgId);
         messagesById.delete(localId);
-        rowsByMsgId.set(realMsg.msgId, rowsByMsgId.get(localId));
+        rowsByMsgId.delete(localId);
         messagesById.set(realMsg.msgId, realMsg);
-        updateStatuses(realMsg);
+        updateMessage(realMsg);
         load();
       } catch (err) {
         localMsg.localStatus = 'failed';
         localMsg.error = err.message || 'send_failed';
         messagesById.set(localId, localMsg);
-        updateStatuses(localMsg);
+        updateMessage(localMsg);
       }
     };
 
@@ -435,7 +476,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const menu = openModal(`
         <div class="vf-chat-menu">
           <div class="vf-chat-reacts">
-            ${['❤️','👍','🔥','👏','😱','👎','🥰'].map(x => `<button type="button" data-emoji="${esc(x)}">${esc(x)}</button>`).join('')}
+            ${REACTION_EMOJIS.map(x => `<button type="button" data-emoji="${esc(x)}" class="${normalizeMyReactions(msg).includes(x) ? 'is-selected' : ''}">${esc(x)}</button>`).join('')}
           </div>
           <button class="vf-btn vf-sec" type="button" data-m="reply">↩ Ответить</button>
           <button class="vf-btn vf-sec" type="button" data-m="copy">📋 Копировать текст</button>
@@ -445,7 +486,9 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
       menu.querySelectorAll('[data-emoji]').forEach(b => b.onclick = async () => {
         try {
-          await core.reactChatMessage({ friendId, msgId: msg.msgId, emoji: b.dataset.emoji });
+          const res = await core.reactChatMessage({ friendId, msgId: msg.msgId, emoji: b.dataset.emoji });
+          const cur = { ...(messagesById.get(msg.msgId) || msg), reactions: res.reactions || {} };
+          updateMessage(cur);
           menu.vfClose?.();
           load();
         } catch (err) {
@@ -507,10 +550,16 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     ov.querySelector('.vf-chat-form').onsubmit = async e => {
       e.preventDefault();
+      if (sendBusy) return;
       const text = input.value.trim();
       if (!text) return;
+      sendBusy = true;
       input.value = '';
-      await sendText(text);
+      try {
+        await sendText(text);
+      } finally {
+        sendBusy = false;
+      }
     };
 
     const cleanup = () => {
