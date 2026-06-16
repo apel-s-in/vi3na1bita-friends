@@ -57,7 +57,24 @@
 .vf-chat-msg.is-mine .vf-chat-bubble{background:linear-gradient(135deg,var(--vf-red),#8b5cff);border-bottom-right-radius:5px}
 .vf-chat-msg.is-friend .vf-chat-bubble{background:rgba(255,255,255,.09);border-bottom-left-radius:5px}
 .vf-chat-time{font-size:10px;line-height:1;color:rgba(174,181,220,.75);padding:0 3px}
-.vf-chat-statuses{display:grid;gap:2px;text-align:right;font-size:10px;line-height:1.15;color:rgba(174,181,220,.72);padding:0 3px}
+.vf-chat-statusline{display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:0 3px}
+.vf-chat-status-btn,.vf-chat-retry{border:0;background:rgba(255,255,255,.06);color:rgba(174,181,220,.82);border-radius:999px;font-size:10px;line-height:1;padding:4px 7px;cursor:pointer}
+.vf-chat-retry{color:#ffd7df;background:rgba(255,49,89,.18);border:1px solid rgba(255,49,89,.28)}
+.vf-chat-quote{margin:-2px 0 5px;padding:5px 7px;border-left:2px solid rgba(36,232,255,.7);border-radius:8px;background:rgba(0,0,0,.18);color:rgba(234,242,255,.82);font-size:11px;line-height:1.25}
+.vf-chat-reply{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:8px 10px;border-radius:12px;background:rgba(36,232,255,.08);border:1px solid rgba(36,232,255,.18);color:#dffbff;font-size:12px;text-align:left}
+.vf-chat-reply span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vf-chat-reply-x{width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
+.vf-chat-reactions{width:fit-content;max-width:100%;padding:1px 6px;border-radius:999px;background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.08);font-size:13px;line-height:1.35}
+.vf-chat-msg.is-mine .vf-chat-reactions{align-self:flex-end}
+.vf-chat-msg.is-friend .vf-chat-reactions{align-self:flex-start}
+.vf-chat-menu{display:grid;gap:8px;text-align:left}
+.vf-chat-reacts{display:flex;gap:4px;justify-content:center;margin-bottom:4px}
+.vf-chat-reacts button{width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.08);font-size:18px;cursor:pointer}
+.vf-chat-log,.vf-voice-log,.vf-app{scrollbar-width:thin;scrollbar-color:rgba(132,145,255,.28) transparent}
+.vf-chat-log::-webkit-scrollbar,.vf-voice-log::-webkit-scrollbar,.vf-app::-webkit-scrollbar{width:6px;height:6px}
+.vf-chat-log::-webkit-scrollbar-track,.vf-voice-log::-webkit-scrollbar-track,.vf-app::-webkit-scrollbar-track{background:transparent}
+.vf-chat-log::-webkit-scrollbar-thumb,.vf-voice-log::-webkit-scrollbar-thumb,.vf-app::-webkit-scrollbar-thumb{background:rgba(132,145,255,.22);border-radius:999px}
+.vf-chat-log::-webkit-scrollbar-thumb:hover,.vf-voice-log::-webkit-scrollbar-thumb:hover,.vf-app::-webkit-scrollbar-thumb:hover{background:rgba(132,145,255,.38)}
 .vf-chat-form{display:grid;grid-template-columns:1fr auto;gap:8px}
 .vf-chat-form input{min-width:0;height:42px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:0 12px;outline:none;font-size:16px}
 .vf-chat-form button{min-height:42px;box-shadow:none}
