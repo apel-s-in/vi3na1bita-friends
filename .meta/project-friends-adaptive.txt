@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-16 11:06:51 UTC
+Сгенерировано: 2026-06-16 11:10:48 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1264,8 +1264,27 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
   const openChatModal = (friendId, name = 'Друг') => {
     let lastAt = 0;
     let timer = 0;
+    let loadBusy = false;
+    let loadFails = 0;
+    let replyTo = null;
     const seen = new Set();
     const rowsByMsgId = new Map();
+    const messagesById = new Map();
+
+    const statusLabel = msg => {
+      if (msg.localStatus === 'failed') return '⚠️ не доставлено';
+      if (msg.readAt) return '✓✓ прочитано';
+      if (msg.deliveredAt) return '✓✓ доставлено';
+      if (msg.createdAt) return '✓ отправлено';
+      return '… отправка';
+    };
+
+    const statusDetails = msg => [
+      `Отправлено: ${fmtStatusTime(msg.createdAt)}`,
+      `Доставлено: ${fmtStatusTime(msg.deliveredAt)}`,
+      `Прочитано: ${fmtStatusTime(msg.readAt)}`,
+      msg.localStatus === 'failed' ? `Ошибка: ${msg.error || 'не отправлено'}` : ''
+    ].filter(Boolean).join('\n');
 
     const ov = openModal(`
       <div class="vf-modal-head vf-chat-head">
@@ -1277,6 +1296,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         <button class="vf-btn vf-danger" type="button" id="vf-chat-clear">Очистить чат</button>
       </div>
       <div class="vf-chat-log" aria-live="polite"></div>
+      <div class="vf-chat-reply" hidden>
+        <span></span>
+        <button type="button" class="vf-chat-reply-x">×</button>
+      </div>
       <form class="vf-chat-form">
         <input type="text" maxlength="500" placeholder="Сообщение..." autocomplete="off">
         <button class="vf-btn" type="submit">▶</button>
@@ -1288,18 +1311,35 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     const log = ov.querySelector('.vf-chat-log');
     const input = ov.querySelector('input');
     const panel = ov.querySelector('.vf-chat-settings-panel');
+    const replyBox = ov.querySelector('.vf-chat-reply');
+    const replyTextEl = replyBox.querySelector('span');
+
+    const renderReply = () => {
+      if (!replyTo) {
+        replyBox.hidden = true;
+        replyTextEl.textContent = '';
+        return;
+      }
+      replyBox.hidden = false;
+      replyTextEl.textContent = `Ответ: ${replyTo.text}`;
+    };
+
+    const showStatus = msg => alert(statusDetails(msg));
 
     const updateStatuses = msg => {
       if (!msg.msgId) return false;
       const row = rowsByMsgId.get(msg.msgId);
-      const box = row?.querySelector?.('.vf-chat-statuses');
-      if (!box) return false;
-      box.innerHTML = `
-        <div>Отправлено: ${fmtStatusTime(msg.createdAt)}</div>
-        <div>Доставлено: ${fmtStatusTime(msg.deliveredAt)}</div>
-        <div>Прочитано: ${fmtStatusTime(msg.readAt)}</div>
-      `;
+      if (!row) return false;
+      messagesById.set(msg.msgId, { ...(messagesById.get(msg.msgId) || {}), ...msg });
+      const cur = messagesById.get(msg.msgId);
+      row.querySelector('.vf-chat-status-btn')?.replaceChildren(document.createTextNode(statusLabel(cur)));
+      row.querySelector('.vf-chat-retry')?.toggleAttribute('hidden', cur.localStatus !== 'failed');
       return true;
+    };
+
+    const renderReactions = reactions => {
+      const vals = Object.values(reactions || {}).filter(Boolean);
+      return vals.length ? `<div class="vf-chat-reactions">${vals.map(esc).join(' ')}</div>` : '';
     };
 
     const append = msg => {
@@ -1309,46 +1349,175 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         return;
       }
       seen.add(key);
+      if (msg.msgId) messagesById.set(msg.msgId, msg);
 
       const mine = msg.fromFriendId === core.identity?.friendId;
       const row = document.createElement('div');
       row.className = `vf-chat-msg ${mine ? 'is-mine' : 'is-friend'}`;
-      row.innerHTML = mine ? `
-        <div class="vf-chat-bubble">${esc(msg.text || '')}</div>
-        <div class="vf-chat-statuses">
-          <div>Отправлено: ${fmtStatusTime(msg.createdAt)}</div>
-          <div>Доставлено: ${fmtStatusTime(msg.deliveredAt)}</div>
-          <div>Прочитано: ${fmtStatusTime(msg.readAt)}</div>
+      row.dataset.msgId = msg.msgId || '';
+      row.innerHTML = `
+        <div class="vf-chat-bubble" role="button" tabindex="0">
+          ${msg.replyText ? `<div class="vf-chat-quote">${esc(msg.replyText)}</div>` : ''}
+          ${esc(msg.text || '')}
         </div>
-      ` : `
-        <div class="vf-chat-bubble">${esc(msg.text || '')}</div>
-        <div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>
+        ${renderReactions(msg.reactions)}
+        ${mine ? `
+          <div class="vf-chat-statusline">
+            <button class="vf-chat-retry" type="button" ${msg.localStatus === 'failed' ? '' : 'hidden'}>↻</button>
+            <button class="vf-chat-status-btn" type="button">${esc(statusLabel(msg))}</button>
+          </div>
+        ` : `<div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>`}
       `;
+
+      row.querySelector('.vf-chat-status-btn')?.addEventListener('click', () => showStatus(messagesById.get(msg.msgId) || msg));
+      row.querySelector('.vf-chat-retry')?.addEventListener('click', () => retryMessage(msg));
+      row.querySelector('.vf-chat-bubble')?.addEventListener('click', () => openMessageMenu(msg));
+
       if (msg.msgId) rowsByMsgId.set(msg.msgId, row);
       log.append(row);
       log.scrollTop = log.scrollHeight;
     };
 
     const load = async () => {
-      if (document.hidden) return;
+      if (document.hidden || loadBusy) return;
+      loadBusy = true;
       try {
         const items = await core.getChatMessages({ friendId, after: lastAt });
+        loadFails = 0;
         items.forEach(msg => {
           lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
           append(msg);
         });
-      } catch {}
+      } catch {
+        loadFails++;
+      } finally {
+        loadBusy = false;
+      }
+    };
+
+    const scheduleLoad = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        await load();
+        scheduleLoad();
+      }, Math.min(18000, 4500 + loadFails * 2500));
+    };
+
+    const sendText = async text => {
+      const localId = `local-${Date.now()}`;
+      const localMsg = {
+        msgId: localId,
+        fromFriendId: core.identity?.friendId,
+        text,
+        replyToMsgId: replyTo?.msgId || '',
+        replyText: replyTo?.text || '',
+        createdAt: Date.now(),
+        deliveredAt: 0,
+        readAt: 0,
+        localStatus: 'sending'
+      };
+
+      append(localMsg);
+      const sentReply = replyTo;
+      replyTo = null;
+      renderReply();
+
+      try {
+        const res = await core.sendChatMessage({
+          toFriendId: friendId,
+          text,
+          replyToMsgId: sentReply?.msgId || '',
+          replyText: sentReply?.text || ''
+        });
+        const createdAt = res.createdAt || Date.now();
+        lastAt = Math.max(lastAt, Number(createdAt || 0));
+        const realMsg = {
+          ...localMsg,
+          msgId: res.msgId || localId,
+          createdAt,
+          deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
+          localStatus: ''
+        };
+        messagesById.delete(localId);
+        rowsByMsgId.set(realMsg.msgId, rowsByMsgId.get(localId));
+        messagesById.set(realMsg.msgId, realMsg);
+        updateStatuses(realMsg);
+        load();
+      } catch (err) {
+        localMsg.localStatus = 'failed';
+        localMsg.error = err.message || 'send_failed';
+        messagesById.set(localId, localMsg);
+        updateStatuses(localMsg);
+      }
+    };
+
+    const retryMessage = async msg => {
+      if (!msg?.text) return;
+      const row = rowsByMsgId.get(msg.msgId);
+      row?.remove();
+      rowsByMsgId.delete(msg.msgId);
+      messagesById.delete(msg.msgId);
+      seen.delete(msg.msgId);
+      await sendText(msg.text);
+    };
+
+    const openMessageMenu = msg => {
+      const menu = openModal(`
+        <div class="vf-chat-menu">
+          <div class="vf-chat-reacts">
+            ${['❤️','👍','🔥','👏','😱','👎','🥰'].map(x => `<button type="button" data-emoji="${esc(x)}">${esc(x)}</button>`).join('')}
+          </div>
+          <button class="vf-btn vf-sec" type="button" data-m="reply">↩ Ответить</button>
+          <button class="vf-btn vf-sec" type="button" data-m="copy">📋 Копировать текст</button>
+          <button class="vf-btn vf-danger" type="button" data-m="delete">🗑 Удалить</button>
+        </div>
+      `);
+
+      menu.querySelectorAll('[data-emoji]').forEach(b => b.onclick = async () => {
+        try {
+          await core.reactChatMessage({ friendId, msgId: msg.msgId, emoji: b.dataset.emoji });
+          menu.vfClose?.();
+          load();
+        } catch (err) {
+          toast(`Ошибка: ${err.message}`);
+        }
+      });
+
+      menu.querySelector('[data-m="reply"]').onclick = () => {
+        replyTo = { msgId: msg.msgId, text: String(msg.text || '').slice(0, 160) };
+        renderReply();
+        menu.vfClose?.();
+        input.focus?.();
+      };
+
+      menu.querySelector('[data-m="copy"]').onclick = async () => {
+        await navigator.clipboard?.writeText?.(msg.text || '').catch(() => null);
+        menu.vfClose?.();
+        toast('Скопировано');
+      };
+
+      menu.querySelector('[data-m="delete"]').onclick = async () => {
+        if (!confirm('Удалить сообщение у обоих собеседников?')) return;
+        try {
+          await core.deleteChatMessage({ friendId, msgId: msg.msgId });
+          rowsByMsgId.get(msg.msgId)?.remove();
+          rowsByMsgId.delete(msg.msgId);
+          messagesById.delete(msg.msgId);
+          menu.vfClose?.();
+        } catch (err) {
+          toast(`Ошибка: ${err.message}`);
+        }
+      };
     };
 
     const close = () => {
-      clearInterval(timer);
+      clearTimeout(timer);
       ov.vfClose?.();
     };
 
     ov.querySelector('#vf-chat-close').onclick = close;
-    ov.querySelector('#vf-chat-settings').onclick = () => {
-      panel.hidden = !panel.hidden;
-    };
+    ov.querySelector('#vf-chat-settings').onclick = () => { panel.hidden = !panel.hidden; };
+    ov.querySelector('.vf-chat-reply-x').onclick = () => { replyTo = null; renderReply(); };
 
     ov.querySelector('#vf-chat-clear').onclick = async () => {
       if (!confirm('Очистить историю этого чата?')) return;
@@ -1356,6 +1525,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         await core.clearChat(friendId);
         lastAt = Date.now();
         seen.clear();
+        rowsByMsgId.clear();
+        messagesById.clear();
         log.innerHTML = '';
         panel.hidden = true;
         toast('Чат очищен');
@@ -1369,26 +1540,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
-      try {
-        const res = await core.sendChatMessage({ toFriendId: friendId, text });
-        const createdAt = res.createdAt || Date.now();
-        lastAt = Math.max(lastAt, Number(createdAt || 0));
-        append({
-          msgId: res.msgId || `local-${createdAt}`,
-          fromFriendId: core.identity?.friendId,
-          text,
-          createdAt,
-          deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
-          readAt: 0
-        });
-        toast('Сообщение отправлено');
-      } catch (err) {
-        toast(`Ошибка отправки: ${err.message}`);
-      }
+      await sendText(text);
     };
 
     const cleanup = () => {
-      clearInterval(timer);
+      clearTimeout(timer);
       observer.disconnect();
     };
 
@@ -1399,7 +1555,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     observer.observe(document.body, { childList: true, subtree: true });
 
     load();
-    timer = setInterval(load, 3500);
+    scheduleLoad();
     setTimeout(() => input.focus?.(), 80);
     return true;
   };
