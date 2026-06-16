@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-16 11:11:29 UTC
+Сгенерировано: 2026-06-16 12:03:10 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -841,12 +841,13 @@ export class FriendsCore {
     return res.presence || {};
   }
 
-  async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '' }) {
+  async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '', clientMsgId = '' }) {
     return this._req('chat_send', {
       toFriendId: safe(toFriendId),
       text: safe(text).slice(0, 500),
       replyToMsgId: safe(replyToMsgId),
-      replyText: safe(replyText).slice(0, 160)
+      replyText: safe(replyText).slice(0, 160),
+      clientMsgId: safe(clientMsgId)
     });
   }
 
