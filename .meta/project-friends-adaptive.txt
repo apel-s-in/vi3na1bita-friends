@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-16 12:08:46 UTC
+Сгенерировано: 2026-06-17 10:31:16 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1095,6 +1095,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
   const el = document.createElement('section');
   el.className = 'vf-wrap';
   root.append(el);
+  let activeChatApi = null;
 
   const toast = text => {
     let t = el.querySelector('.vf-toast');
@@ -1310,6 +1311,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     let sendBusy = false;
     const seen = new Set();
     const rowsByMsgId = new Map();
+    const rowsByClientId = new Map();
     const messagesById = new Map();
 
     const statusLabel = msg => {
@@ -1367,6 +1369,87 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     const showStatus = msg => alert(statusDetails(msg));
 
+    const renderQuoteHtml = msg => msg.replyToMsgId
+      ? `<button type="button" class="vf-chat-quote" data-reply-to="${esc(msg.replyToMsgId)}"><span>↩ ответ</span><b>${esc(msg.replyText || 'Сообщение')}</b></button>`
+      : '';
+
+    const renderReactions = reactions => {
+      const entries = Object.entries(reactions || {}).flatMap(([uid, raw]) => {
+        const arr = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).filter(Boolean).slice(0, 3);
+        return arr.map(emoji => ({ uid, emoji }));
+      });
+      if (!entries.length) return '';
+      return `<div class="vf-chat-reactions">${entries.map(x => `<span class="${x.uid === core.identity?.friendId ? 'is-my' : 'is-peer'}">${esc(x.emoji)}</span>`).join('')}</div>`;
+    };
+
+    const scrollToMessage = msgId => {
+      const row = rowsByMsgId.get(msgId);
+      if (!row) return false;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.add('is-target');
+      setTimeout(() => row.classList.remove('is-target'), 1400);
+      return true;
+    };
+
+    const updateMessage = msg => {
+      const row = (msg.msgId && rowsByMsgId.get(msg.msgId)) || (msg.clientMsgId && rowsByClientId.get(msg.clientMsgId)) || null;
+      if (!row) return false;
+
+      const prevMsgId = row.dataset.msgId || '';
+      const prevClientId = row.dataset.clientMsgId || '';
+      const cur = { ...(messagesById.get(prevMsgId) || messagesById.get(prevClientId) || {}), ...msg };
+      const nextMsgId = cur.msgId || prevMsgId || '';
+      const nextClientId = cur.clientMsgId || prevClientId || '';
+
+      if (prevMsgId && prevMsgId !== nextMsgId) rowsByMsgId.delete(prevMsgId);
+      if (prevClientId && prevClientId !== nextClientId) rowsByClientId.delete(prevClientId);
+
+      row.dataset.msgId = nextMsgId;
+      row.dataset.clientMsgId = nextClientId;
+      if (nextMsgId) rowsByMsgId.set(nextMsgId, row);
+      if (nextClientId) rowsByClientId.set(nextClientId, row);
+
+      messagesById.set(nextMsgId || nextClientId, cur);
+      if (nextMsgId) messagesById.set(nextMsgId, cur);
+      if (nextClientId) messagesById.set(nextClientId, cur);
+
+      const bubble = row.querySelector('.vf-chat-bubble');
+      if (bubble) bubble.innerHTML = `${renderQuoteHtml(cur)}<span class="vf-chat-text">${esc(cur.text || '')}</span>`;
+
+      row.querySelector('.vf-chat-reactions')?.remove();
+      const reactionsHtml = renderReactions(cur.reactions);
+      if (reactionsHtml) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = reactionsHtml;
+        const before = row.querySelector('.vf-chat-statusline,.vf-chat-time');
+        row.insertBefore(tmp.firstElementChild, before || null);
+      }
+
+      row.querySelector('.vf-chat-status-btn')?.replaceChildren(document.createTextNode(statusLabel(cur)));
+      row.querySelector('.vf-chat-retry')?.toggleAttribute('hidden', cur.localStatus !== 'failed');
+      return true;
+    };
+
+    const pushIncomingMessage = msg => {
+      if (!msg || msg.fromFriendId !== friendId) return false;
+      append({
+        msgId: msg.msgId || msg.pushId || `push-${Date.now()}`,
+        clientMsgId: msg.clientMsgId || '',
+        fromFriendId: msg.fromFriendId,
+        toFriendId: core.identity?.friendId,
+        text: msg.text || '',
+        replyToMsgId: '',
+        replyText: '',
+        reactions: msg.reactions || {},
+        createdAt: msg.createdAt || Date.now(),
+        deliveredAt: msg.deliveredAt || msg.createdAt || Date.now(),
+        readAt: msg.readAt || Date.now()
+      });
+      lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
+      log.scrollTop = log.scrollHeight;
+      return true;
+    };
+
     const normalizeMyReactions = msg => {
       let mine = msg?.reactions?.[core.identity?.friendId];
       if (typeof mine === 'string') mine = mine ? [mine] : [];
@@ -1412,21 +1495,24 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     };
 
     const append = msg => {
-      const key = msg.msgId || `${msg.fromFriendId}:${msg.createdAt}:${msg.text}`;
-      if (seen.has(key) || rowsByMsgId.has(msg.msgId)) {
+      const key = msg.clientMsgId || msg.msgId || `${msg.fromFriendId}:${msg.createdAt}:${msg.text}`;
+      if (seen.has(key) || (msg.clientMsgId && rowsByClientId.has(msg.clientMsgId)) || (msg.msgId && rowsByMsgId.has(msg.msgId))) {
         updateMessage(msg);
         return;
       }
       seen.add(key);
       if (msg.msgId) messagesById.set(msg.msgId, msg);
+      if (msg.clientMsgId) messagesById.set(msg.clientMsgId, msg);
 
       const mine = msg.fromFriendId === core.identity?.friendId;
       const row = document.createElement('div');
       row.className = `vf-chat-msg ${mine ? 'is-mine' : 'is-friend'}`;
       row.dataset.msgId = msg.msgId || '';
+      row.dataset.clientMsgId = msg.clientMsgId || '';
       row.innerHTML = `
+        ${renderQuoteHtml(msg)}
         <div class="vf-chat-bubble" role="button" tabindex="0">
-          ${renderQuoteHtml(msg)}<span class="vf-chat-text">${esc(msg.text || '')}</span>
+          <span class="vf-chat-text">${esc(msg.text || '')}</span>
         </div>
         ${renderReactions(msg.reactions)}
         ${mine ? `
@@ -1437,11 +1523,16 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         ` : `<div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>`}
       `;
 
-      row.querySelector('.vf-chat-status-btn')?.addEventListener('click', () => showStatus(messagesById.get(msg.msgId) || msg));
+      row.querySelector('[data-reply-to]')?.addEventListener('click', e => {
+        e.preventDefault();
+        scrollToMessage(e.currentTarget.dataset.replyTo);
+      });
+      row.querySelector('.vf-chat-status-btn')?.addEventListener('click', () => showStatus(messagesById.get(msg.msgId || msg.clientMsgId) || msg));
       row.querySelector('.vf-chat-retry')?.addEventListener('click', () => retryMessage(msg));
       row.querySelector('.vf-chat-bubble')?.addEventListener('click', () => openMessageMenu(msg));
 
       if (msg.msgId) rowsByMsgId.set(msg.msgId, row);
+      if (msg.clientMsgId) rowsByClientId.set(msg.clientMsgId, row);
       log.append(row);
       log.scrollTop = log.scrollHeight;
     };
@@ -1475,6 +1566,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const localId = `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const localMsg = {
         msgId: localId,
+        clientMsgId: localId,
         fromFriendId: core.identity?.friendId,
         text,
         replyToMsgId: replyTo?.msgId || '',
@@ -1507,20 +1599,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
           localStatus: ''
         };
-        const localRow = rowsByMsgId.get(localId);
-        const realRow = rowsByMsgId.get(realMsg.msgId);
-
-        if (realRow && localRow && realRow !== localRow) {
-          localRow.remove();
-        } else if (localRow) {
-          localRow.dataset.msgId = realMsg.msgId;
-          rowsByMsgId.set(realMsg.msgId, localRow);
-        }
-
         seen.add(realMsg.msgId);
-        messagesById.delete(localId);
-        rowsByMsgId.delete(localId);
-        messagesById.set(realMsg.msgId, realMsg);
         updateMessage(realMsg);
         load();
       } catch (err) {
@@ -1594,7 +1673,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     const close = () => {
       clearTimeout(timer);
-      ov.vfClose?.();
+      observer.disconnect();
+      if (activeChatApi?.friendId === friendId) activeChatApi = null;
     };
 
     ov.querySelector('#vf-chat-close').onclick = close;
@@ -1642,6 +1722,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     observer.observe(document.body, { childList: true, subtree: true });
 
+    activeChatApi = { friendId, pushIncomingMessage, scrollToMessage };
     load();
     scheduleLoad();
     setTimeout(() => input.focus?.(), 80);
@@ -2076,7 +2157,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       ov.querySelector('.vf-add-body').innerHTML = `<p>Ошибка: ${esc(err.message)}</p>`;
     }
   };
-
+  const pushIncomingChat = push => {
+    if (!push || activeChatApi?.friendId !== push.fromFriendId) return false;
+    return activeChatApi.pushIncomingMessage?.(push) || false;
+  };
   const openChat = async friendId => {
     if (!friendId) return false;
     let name = 'Друг';
@@ -2090,7 +2174,13 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     return opened !== false;
   };
 
-  return { refresh, openChat, openVoiceCall };
+  return {
+    refresh,
+    openChat,
+    openVoiceCall,
+    getActiveChatFriendId: () => activeChatApi?.friendId || '',
+    pushIncomingChat
+  };
 };
 
 //=================================================
