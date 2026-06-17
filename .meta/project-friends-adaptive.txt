@@ -47,7 +47,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-17 14:03:24 UTC
+Сгенерировано: 2026-06-17 14:17:29 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1371,7 +1371,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal');
 
     const log = ov.querySelector('.vf-chat-log');
-    const input = ov.querySelector('input');
+    const input = ov.querySelector('textarea, input');
     const panel = ov.querySelector('.vf-chat-settings-panel');
     const replyBox = ov.querySelector('.vf-chat-reply');
     const replyTextEl = replyBox.querySelector('span');
@@ -1470,8 +1470,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       row.dataset.msgId = msg.msgId || '';
       row.dataset.clientMsgId = msg.clientMsgId || '';
       row.innerHTML = `
-        ${renderQuoteHtml(msg)}
         <div class="vf-chat-bubble" role="button" tabindex="0">
+          ${renderQuoteHtml(msg)}
           <span class="vf-chat-text">${esc(msg.text || '')}</span>
         </div>
         ${renderReactions(msg.reactions)}
@@ -1658,9 +1658,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       };
     };
 
+    let cleanupObserver = null;
+
     const close = () => {
       clearTimeout(timer);
-      observer.disconnect();
+      cleanupObserver?.disconnect?.();
       if (activeChatApi?.friendId === friendId) activeChatApi = null;
       ov.vfClose?.();
     };
@@ -1686,16 +1688,20 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     };
 
     const autoGrow = () => {
+      if (!input) return;
       input.style.height = 'auto';
-      input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+      input.style.height = `${Math.min(input.scrollHeight, Math.max(160, Math.floor(window.innerHeight * 0.34)))}px`;
+      log.scrollTop = log.scrollHeight;
     };
-    input.addEventListener('input', autoGrow);
-    input.addEventListener('keydown', e => {
+
+    input?.addEventListener('input', autoGrow);
+    input?.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        ov.querySelector('.vf-chat-form').requestSubmit?.();
+        ov.querySelector('.vf-chat-form')?.requestSubmit?.();
       }
     });
+    setTimeout(autoGrow, 0);
 
     const submitMessage = async () => {
       if (sendBusy) return;
@@ -1718,19 +1724,20 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     const cleanup = () => {
       clearTimeout(timer);
-      observer.disconnect();
+      cleanupObserver?.disconnect?.();
+      if (activeChatApi?.friendId === friendId) activeChatApi = null;
     };
 
-    const observer = new MutationObserver(() => {
+    cleanupObserver = new MutationObserver(() => {
       if (!document.body.contains(ov)) cleanup();
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    cleanupObserver.observe(document.body, { childList: true, subtree: true });
 
     activeChatApi = { friendId, pushIncomingMessage, scrollToMessage };
     load();
     scheduleLoad();
-    setTimeout(() => input.focus?.(), 80);
+    setTimeout(() => input?.focus?.(), 80);
     return true;
   };
 
