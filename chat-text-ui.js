@@ -1,0 +1,489 @@
+// /Friends/chat-text-ui.js
+// Текстовый чат: UI, optimistic-send, reply/quote, reactions, retry, adaptive polling.
+
+const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+})[c]);
+
+const fmtChatTime = ts => {
+  const d = new Date(Number(ts || Date.now()));
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+};
+
+const fmtStatusTime = ts => Number(ts || 0) > 0 ? fmtChatTime(ts) : '—';
+const REACTION_EMOJIS = ['❤️', '👍', '🔥', '👏', '😱', '👎', '🥰'];
+
+export const openTextChatModal = ({
+  friendId,
+  name = 'Друг',
+  core,
+  openModal,
+  toast,
+  onActiveChatChange = () => {}
+} = {}) => {
+  if (!friendId || !core || typeof openModal !== 'function') return false;
+
+  let lastAt = 0;
+  let timer = 0;
+  let loadBusy = false;
+  let loadFails = 0;
+  let replyTo = null;
+  let sendBusy = false;
+  let cleanupObserver = null;
+
+  const seen = new Set();
+  const rowsByMsgId = new Map();
+  const rowsByClientId = new Map();
+  const messagesById = new Map();
+
+  const statusLabel = msg => {
+    if (msg.localStatus === 'failed') return '⚠️ не доставлено';
+    if (msg.readAt) return '✓✓ прочитано';
+    if (msg.deliveredAt) return '✓✓ доставлено';
+    if (msg.createdAt) return '✓ отправлено';
+    return '… отправка';
+  };
+
+  const statusDetails = msg => [
+    `Отправлено: ${fmtStatusTime(msg.createdAt)}`,
+    `Доставлено: ${fmtStatusTime(msg.deliveredAt)}`,
+    `Прочитано: ${fmtStatusTime(msg.readAt)}`,
+    msg.localStatus === 'failed' ? `Ошибка: ${msg.error || 'не отправлено'}` : ''
+  ].filter(Boolean).join('\n');
+
+  const ov = openModal(`
+    <div class="vf-modal-head vf-chat-head">
+      <button class="vf-btn vf-sec vf-chat-gear" type="button" id="vf-chat-settings" title="Настройки">⚙</button>
+      <b>Чат с ${esc(name)}</b>
+      <button class="vf-btn vf-sec vf-chat-close" type="button" id="vf-chat-close" title="Закрыть">✕</button>
+    </div>
+    <div class="vf-chat-settings-panel" hidden>
+      <button class="vf-btn vf-danger" type="button" id="vf-chat-clear">Очистить чат</button>
+    </div>
+    <div class="vf-chat-log" aria-live="polite"></div>
+    <div class="vf-chat-reply" hidden>
+      <span></span>
+      <button type="button" class="vf-chat-reply-x">×</button>
+    </div>
+    <form class="vf-chat-form">
+      <textarea rows="1" maxlength="500" placeholder="Сообщение..." autocomplete="off"></textarea>
+      <button class="vf-btn" type="submit">▶</button>
+    </form>
+  `, { closeOnBackdrop: false });
+
+  ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal');
+
+  const log = ov.querySelector('.vf-chat-log');
+  const input = ov.querySelector('textarea');
+  const panel = ov.querySelector('.vf-chat-settings-panel');
+  const replyBox = ov.querySelector('.vf-chat-reply');
+  const replyTextEl = replyBox.querySelector('span');
+
+  const renderReply = () => {
+    if (!replyTo) {
+      replyBox.hidden = true;
+      replyTextEl.textContent = '';
+      return;
+    }
+    replyBox.hidden = false;
+    replyTextEl.textContent = `Ответ: ${replyTo.text}`;
+  };
+
+  const normalizeMyReactions = msg => {
+    let mine = msg?.reactions?.[core.identity?.friendId];
+    if (typeof mine === 'string') mine = mine ? [mine] : [];
+    return Array.isArray(mine) ? mine.filter(Boolean).slice(0, 3) : [];
+  };
+
+  const renderQuoteHtml = msg => msg.replyToMsgId
+    ? `<button type="button" class="vf-chat-quote" data-reply-to="${esc(msg.replyToMsgId)}"><span>↩ ответ</span><b>${esc(msg.replyText || 'Сообщение')}</b></button>`
+    : '';
+
+  const renderReactions = reactions => {
+    const entries = Object.entries(reactions || {}).flatMap(([uid, raw]) => {
+      const arr = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).filter(Boolean).slice(0, 3);
+      return arr.map(emoji => ({ uid, emoji }));
+    });
+    if (!entries.length) return '';
+    return `<div class="vf-chat-reactions">${entries.map(x => `<span class="${x.uid === core.identity?.friendId ? 'is-my' : 'is-peer'}">${esc(x.emoji)}</span>`).join('')}</div>`;
+  };
+
+  const renderMessageInner = msg => {
+    const mine = msg.fromFriendId === core.identity?.friendId;
+    return `
+      ${renderQuoteHtml(msg)}
+      <div class="vf-chat-bubble" role="button" tabindex="0">
+        <span class="vf-chat-text">${esc(msg.text || '')}</span>
+      </div>
+      ${renderReactions(msg.reactions)}
+      ${mine ? `
+        <div class="vf-chat-statusline">
+          <button class="vf-chat-retry" type="button" ${msg.localStatus === 'failed' ? '' : 'hidden'}>↻</button>
+          <button class="vf-chat-status-btn" type="button">${esc(statusLabel(msg))}</button>
+        </div>
+      ` : `<div class="vf-chat-time">${fmtChatTime(msg.createdAt)}</div>`}
+    `;
+  };
+
+  const getRowMessage = row => {
+    const msgId = row?.dataset?.msgId || '';
+    const clientMsgId = row?.dataset?.clientMsgId || '';
+    return messagesById.get(msgId) || messagesById.get(clientMsgId) || null;
+  };
+
+  const scrollToMessage = msgId => {
+    const row = rowsByMsgId.get(msgId) || rowsByClientId.get(msgId);
+    if (!row) {
+      toast?.('Исходное сообщение не найдено в загруженной истории');
+      return false;
+    }
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('is-target');
+    setTimeout(() => row.classList.remove('is-target'), 1400);
+    return true;
+  };
+
+  const setRowKeys = (row, msg) => {
+    const prevMsgId = row.dataset.msgId || '';
+    const prevClientId = row.dataset.clientMsgId || '';
+    const nextMsgId = msg.msgId || prevMsgId || '';
+    const nextClientId = msg.clientMsgId || prevClientId || '';
+
+    if (prevMsgId && prevMsgId !== nextMsgId) rowsByMsgId.delete(prevMsgId);
+    if (prevClientId && prevClientId !== nextClientId) rowsByClientId.delete(prevClientId);
+
+    row.dataset.msgId = nextMsgId;
+    row.dataset.clientMsgId = nextClientId;
+
+    if (nextMsgId) {
+      rowsByMsgId.set(nextMsgId, row);
+      messagesById.set(nextMsgId, msg);
+    }
+    if (nextClientId) {
+      rowsByClientId.set(nextClientId, row);
+      messagesById.set(nextClientId, msg);
+    }
+  };
+
+  const updateMessage = msg => {
+    const row = (msg.msgId && rowsByMsgId.get(msg.msgId)) || (msg.clientMsgId && rowsByClientId.get(msg.clientMsgId)) || null;
+    if (!row) return false;
+
+    const prevMsgId = row.dataset.msgId || '';
+    const prevClientId = row.dataset.clientMsgId || '';
+    const cur = { ...(messagesById.get(prevMsgId) || messagesById.get(prevClientId) || {}), ...msg };
+
+    setRowKeys(row, cur);
+    row.innerHTML = renderMessageInner(cur);
+    return true;
+  };
+
+  const append = msg => {
+    const key = msg.clientMsgId || msg.msgId || `${msg.fromFriendId}:${msg.createdAt}:${msg.text}`;
+    if (seen.has(key) || (msg.clientMsgId && rowsByClientId.has(msg.clientMsgId)) || (msg.msgId && rowsByMsgId.has(msg.msgId))) {
+      updateMessage(msg);
+      return;
+    }
+
+    seen.add(key);
+
+    const mine = msg.fromFriendId === core.identity?.friendId;
+    const row = document.createElement('div');
+    row.className = `vf-chat-msg ${mine ? 'is-mine' : 'is-friend'}`;
+    row.innerHTML = renderMessageInner(msg);
+    setRowKeys(row, msg);
+
+    row.addEventListener('click', e => {
+      const quote = e.target.closest?.('[data-reply-to]');
+      if (quote && row.contains(quote)) {
+        e.preventDefault();
+        e.stopPropagation();
+        scrollToMessage(quote.dataset.replyTo || '');
+        return;
+      }
+
+      const retry = e.target.closest?.('.vf-chat-retry');
+      if (retry && row.contains(retry)) {
+        e.preventDefault();
+        e.stopPropagation();
+        retryMessage(getRowMessage(row));
+        return;
+      }
+
+      const status = e.target.closest?.('.vf-chat-status-btn');
+      if (status && row.contains(status)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = getRowMessage(row);
+        if (cur) alert(statusDetails(cur));
+        return;
+      }
+
+      const bubble = e.target.closest?.('.vf-chat-bubble');
+      if (bubble && row.contains(bubble)) {
+        e.preventDefault();
+        const cur = getRowMessage(row);
+        if (cur) openMessageMenu(cur);
+      }
+    });
+
+    log.append(row);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  const pushIncomingMessage = msg => {
+    if (!msg || msg.fromFriendId !== friendId) return false;
+    append({
+      msgId: msg.msgId || msg.pushId || `push-${Date.now()}`,
+      clientMsgId: msg.clientMsgId || '',
+      fromFriendId: msg.fromFriendId,
+      toFriendId: core.identity?.friendId,
+      text: msg.text || '',
+      replyToMsgId: msg.replyToMsgId || '',
+      replyText: msg.replyText || '',
+      reactions: msg.reactions || {},
+      createdAt: msg.createdAt || Date.now(),
+      deliveredAt: msg.deliveredAt || msg.createdAt || Date.now(),
+      readAt: msg.readAt || Date.now()
+    });
+    lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
+    log.scrollTop = log.scrollHeight;
+    return true;
+  };
+
+  const load = async () => {
+    if (loadBusy || document.hidden) return false;
+    loadBusy = true;
+    try {
+      const items = await core.getChatMessages({ friendId, after: lastAt });
+      loadFails = 0;
+      items.forEach(msg => {
+        lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
+        append(msg);
+      });
+      return true;
+    } catch (err) {
+      loadFails = Math.min(loadFails + 1, 8);
+      if (Number(err?.status) === 429) loadFails = Math.max(loadFails, 5);
+      return false;
+    } finally {
+      loadBusy = false;
+    }
+  };
+
+  const scheduleLoad = () => {
+    clearTimeout(timer);
+    const delay = Math.min(30000, 4000 + loadFails * 4000);
+    timer = setTimeout(async () => {
+      await load();
+      scheduleLoad();
+    }, delay);
+  };
+
+  const sendText = async text => {
+    const sentReply = replyTo;
+    const localId = `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const localMsg = {
+      msgId: localId,
+      clientMsgId: localId,
+      fromFriendId: core.identity?.friendId,
+      text,
+      replyToMsgId: sentReply?.msgId || '',
+      replyText: sentReply?.text || '',
+      createdAt: Date.now(),
+      deliveredAt: 0,
+      readAt: 0,
+      localStatus: 'sending'
+    };
+
+    append(localMsg);
+    replyTo = null;
+    renderReply();
+
+    try {
+      const res = await core.sendChatMessage({
+        toFriendId: friendId,
+        text,
+        replyToMsgId: sentReply?.msgId || '',
+        replyText: sentReply?.text || '',
+        clientMsgId: localId
+      });
+      const createdAt = res.createdAt || Date.now();
+      lastAt = Math.max(lastAt, Number(createdAt || 0));
+      const realMsg = {
+        ...localMsg,
+        msgId: res.msgId || localId,
+        createdAt,
+        deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
+        localStatus: ''
+      };
+      seen.add(realMsg.msgId);
+      updateMessage(realMsg);
+      load();
+    } catch (err) {
+      localMsg.localStatus = 'failed';
+      localMsg.error = err.message || 'send_failed';
+      messagesById.set(localId, localMsg);
+      if (localMsg.clientMsgId) messagesById.set(localMsg.clientMsgId, localMsg);
+      updateMessage(localMsg);
+    }
+  };
+
+  const retryMessage = async msg => {
+    if (!msg?.text) return;
+    const row = rowsByMsgId.get(msg.msgId) || rowsByClientId.get(msg.clientMsgId);
+    row?.remove();
+
+    if (msg.msgId) {
+      rowsByMsgId.delete(msg.msgId);
+      messagesById.delete(msg.msgId);
+      seen.delete(msg.msgId);
+    }
+    if (msg.clientMsgId) {
+      rowsByClientId.delete(msg.clientMsgId);
+      messagesById.delete(msg.clientMsgId);
+      seen.delete(msg.clientMsgId);
+    }
+
+    replyTo = msg.replyToMsgId ? { msgId: msg.replyToMsgId, text: msg.replyText || 'Сообщение' } : null;
+    await sendText(msg.text);
+  };
+
+  const openMessageMenu = msg => {
+    const menu = openModal(`
+      <div class="vf-chat-menu">
+        <div class="vf-chat-reacts">
+          ${REACTION_EMOJIS.map(x => `<button type="button" data-emoji="${esc(x)}" class="${normalizeMyReactions(msg).includes(x) ? 'is-selected' : ''}">${esc(x)}</button>`).join('')}
+        </div>
+        <button class="vf-btn vf-sec" type="button" data-m="reply">↩ Ответить</button>
+        <button class="vf-btn vf-sec" type="button" data-m="copy">📋 Копировать текст</button>
+        <button class="vf-btn vf-danger" type="button" data-m="delete">🗑 Удалить</button>
+      </div>
+    `);
+
+    menu.querySelectorAll('[data-emoji]').forEach(b => b.onclick = async () => {
+      try {
+        const res = await core.reactChatMessage({ friendId, msgId: msg.msgId, emoji: b.dataset.emoji });
+        const cur = { ...(messagesById.get(msg.msgId) || msg), reactions: res.reactions || {} };
+        updateMessage(cur);
+        menu.vfClose?.();
+        load();
+      } catch (err) {
+        toast?.(`Ошибка: ${err.message}`);
+      }
+    });
+
+    menu.querySelector('[data-m="reply"]').onclick = () => {
+      replyTo = { msgId: msg.msgId, text: String(msg.text || '').slice(0, 160) };
+      renderReply();
+      menu.vfClose?.();
+      input?.focus?.();
+    };
+
+    menu.querySelector('[data-m="copy"]').onclick = async () => {
+      await navigator.clipboard?.writeText?.(msg.text || '').catch(() => null);
+      menu.vfClose?.();
+      toast?.('Скопировано');
+    };
+
+    menu.querySelector('[data-m="delete"]').onclick = async () => {
+      if (!confirm('Удалить сообщение у обоих собеседников?')) return;
+      try {
+        await core.deleteChatMessage({ friendId, msgId: msg.msgId });
+        rowsByMsgId.get(msg.msgId)?.remove();
+        rowsByMsgId.delete(msg.msgId);
+        messagesById.delete(msg.msgId);
+        menu.vfClose?.();
+      } catch (err) {
+        toast?.(`Ошибка: ${err.message}`);
+      }
+    };
+  };
+
+  const close = () => {
+    clearTimeout(timer);
+    cleanupObserver?.disconnect?.();
+    onActiveChatChange(null);
+    ov.vfClose?.();
+  };
+
+  const autoGrow = () => {
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, Math.max(160, Math.floor(window.innerHeight * 0.34)))}px`;
+    log.scrollTop = log.scrollHeight;
+  };
+
+  ov.querySelector('#vf-chat-close').onclick = close;
+  ov.querySelector('#vf-chat-settings').onclick = () => { panel.hidden = !panel.hidden; };
+  ov.querySelector('.vf-chat-reply-x').onclick = () => {
+    replyTo = null;
+    renderReply();
+  };
+
+  ov.querySelector('#vf-chat-clear').onclick = async () => {
+    if (!confirm('Очистить историю этого чата?')) return;
+    try {
+      await core.clearChat(friendId);
+      lastAt = Date.now();
+      seen.clear();
+      rowsByMsgId.clear();
+      rowsByClientId.clear();
+      messagesById.clear();
+      log.innerHTML = '';
+      panel.hidden = true;
+      toast?.('Чат очищен');
+    } catch (err) {
+      toast?.(`Ошибка очистки: ${err.message}`);
+    }
+  };
+
+  input?.addEventListener('input', autoGrow);
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      ov.querySelector('.vf-chat-form')?.requestSubmit?.();
+    }
+  });
+
+  ov.querySelector('.vf-chat-form').onsubmit = async e => {
+    e.preventDefault();
+    if (sendBusy) return;
+    const text = input.value.trim();
+    if (!text) return;
+    sendBusy = true;
+    input.value = '';
+    autoGrow();
+    try {
+      await sendText(text);
+    } finally {
+      sendBusy = false;
+    }
+  };
+
+  cleanupObserver = new MutationObserver(() => {
+    if (!document.body.contains(ov)) {
+      clearTimeout(timer);
+      cleanupObserver?.disconnect?.();
+      onActiveChatChange(null);
+    }
+  });
+  cleanupObserver.observe(document.body, { childList: true, subtree: true });
+
+  onActiveChatChange({ friendId, pushIncomingMessage, scrollToMessage });
+  load();
+  scheduleLoad();
+  setTimeout(() => {
+    autoGrow();
+    input?.focus?.();
+  }, 80);
+
+  return true;
+};
+
+export default { openTextChatModal };
