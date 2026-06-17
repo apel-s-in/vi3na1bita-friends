@@ -115,7 +115,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     });
   };
 
-  const openModal = html => {
+  const openModal = (html, { closeOnBackdrop = true } = {}) => {
     const ov = document.createElement('div');
     ov.className = 'vf-modal-ov';
     ov.innerHTML = `<div class="vf-modal">${html}</div>`;
@@ -132,7 +132,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     };
 
     ov.vfClose = close;
-    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    if (closeOnBackdrop) ov.addEventListener('click', e => { if (e.target === ov) close(); });
     return ov;
   };
 
@@ -275,10 +275,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         <button type="button" class="vf-chat-reply-x">×</button>
       </div>
       <form class="vf-chat-form">
-        <input type="text" maxlength="500" placeholder="Сообщение..." autocomplete="off">
+        <textarea rows="1" maxlength="500" placeholder="Сообщение..." autocomplete="off"></textarea>
         <button class="vf-btn" type="submit">▶</button>
       </form>
-    `);
+    `, { closeOnBackdrop: false });
 
     ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal');
 
@@ -430,7 +430,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     };
 
     const load = async () => {
-      if (loadBusy) return;
+      if (loadBusy || document.hidden) return false;
       loadBusy = true;
       try {
         const items = await core.getChatMessages({ friendId, after: lastAt });
@@ -439,8 +439,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
           append(msg);
         });
-      } catch {
-        loadFails++;
+        return true;
+      } catch (err) {
+        loadFails = Math.min(loadFails + 1, 8);
+        if (Number(err?.status) === 429) loadFails = Math.max(loadFails, 5);
+        return false;
       } finally {
         loadBusy = false;
       }
@@ -448,10 +451,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     const scheduleLoad = () => {
       clearTimeout(timer);
+      const delay = Math.min(30000, 4000 + loadFails * 4000);
       timer = setTimeout(async () => {
         await load();
         scheduleLoad();
-      }, Math.min(8000, 2000 + loadFails * 1500));
+      }, delay);
     };
 
     const sendText = async text => {
@@ -497,18 +501,21 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       } catch (err) {
         localMsg.localStatus = 'failed';
         localMsg.error = err.message || 'send_failed';
+        localMsg.replyToMsgId = sentReply?.msgId || '';
+        localMsg.replyText = sentReply?.text || '';
         messagesById.set(localId, localMsg);
+        if (localMsg.clientMsgId) messagesById.set(localMsg.clientMsgId, localMsg);
         updateMessage(localMsg);
       }
     };
 
     const retryMessage = async msg => {
       if (!msg?.text) return;
-      const row = rowsByMsgId.get(msg.msgId);
+      const row = rowsByMsgId.get(msg.msgId) || rowsByClientId.get(msg.clientMsgId);
       row?.remove();
-      rowsByMsgId.delete(msg.msgId);
-      messagesById.delete(msg.msgId);
-      seen.delete(msg.msgId);
+      if (msg.msgId) { rowsByMsgId.delete(msg.msgId); messagesById.delete(msg.msgId); seen.delete(msg.msgId); }
+      if (msg.clientMsgId) { rowsByClientId.delete(msg.clientMsgId); messagesById.delete(msg.clientMsgId); seen.delete(msg.clientMsgId); }
+      replyTo = msg.replyToMsgId ? { msgId: msg.replyToMsgId, text: msg.replyText || 'Сообщение' } : null;
       await sendText(msg.text);
     };
 
@@ -567,6 +574,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       clearTimeout(timer);
       observer.disconnect();
       if (activeChatApi?.friendId === friendId) activeChatApi = null;
+      ov.vfClose?.();
     };
 
     ov.querySelector('#vf-chat-close').onclick = close;
@@ -589,18 +597,35 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       }
     };
 
-    ov.querySelector('.vf-chat-form').onsubmit = async e => {
-      e.preventDefault();
+    const autoGrow = () => {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+    };
+    input.addEventListener('input', autoGrow);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        ov.querySelector('.vf-chat-form').requestSubmit?.();
+      }
+    });
+
+    const submitMessage = async () => {
       if (sendBusy) return;
       const text = input.value.trim();
       if (!text) return;
       sendBusy = true;
       input.value = '';
+      autoGrow();
       try {
         await sendText(text);
       } finally {
         sendBusy = false;
       }
+    };
+
+    ov.querySelector('.vf-chat-form').onsubmit = e => {
+      e.preventDefault();
+      submitMessage();
     };
 
     const cleanup = () => {
