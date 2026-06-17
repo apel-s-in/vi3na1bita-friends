@@ -130,7 +130,9 @@
 .vf-chat-quote b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.88);font-size:11px;font-weight:800}
 .vf-chat-msg.is-target .vf-chat-bubble{box-shadow:0 0 0 2px rgba(36,232,255,.24),0 5px 14px rgba(0,0,0,.12)}
 .vf-chat-msg.is-target .vf-chat-quote{border-color:rgba(70,230,165,.55)}
-/* ── финальный адаптивный пузырь и единая цитата ── */
+/* ── финальный адаптивный пузырь, цитата и Telegram-like textarea ── */
+.vf-chat-modal{height:min(680px,calc(100dvh - 24px));max-height:calc(100dvh - 24px)}
+.vf-chat-log{flex:1 1 auto!important;min-height:90px!important;max-height:none!important}
 .vf-chat-msg{max-width:80%}
 .vf-chat-bubble{display:inline-flex!important;flex-direction:column;gap:5px;min-width:0!important;width:fit-content!important;max-width:100%;padding:7px 10px;border-radius:14px}
 .vf-chat-bubble .vf-chat-text{display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.3}
@@ -139,6 +141,6 @@
 .vf-chat-bubble>.vf-chat-quote:hover{background:rgba(0,0,0,.34)!important}
 .vf-chat-bubble>.vf-chat-quote span{font-size:8px;letter-spacing:.04em;opacity:.85}
 .vf-chat-bubble>.vf-chat-quote b{max-width:200px;font-size:11px}
-.vf-chat-form{align-items:flex-end}
-.vf-chat-form textarea{min-width:0;width:100%;min-height:42px;max-height:132px;resize:none;overflow-y:auto;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:14px;padding:10px 12px;outline:none;font-size:16px;line-height:1.32;font-family:inherit}
-.vf-chat-form button{min-height:42px;align-self:flex-end}
+.vf-chat-form{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.vf-chat-form textarea{min-width:0;width:100%;height:42px;min-height:42px;max-height:min(34dvh,240px);resize:none;overflow-y:auto;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:14px;padding:10px 12px;outline:none;font-size:16px;line-height:1.32;font-family:inherit;-webkit-overflow-scrolling:touch}
+.vf-chat-form button{min-height:42px;align-self:end}
