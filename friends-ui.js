@@ -300,6 +300,12 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
 
     const showStatus = msg => alert(statusDetails(msg));
 
+    const normalizeMyReactions = msg => {
+      let mine = msg?.reactions?.[core.identity?.friendId];
+      if (typeof mine === 'string') mine = mine ? [mine] : [];
+      return Array.isArray(mine) ? mine.filter(Boolean).slice(0, 3) : [];
+    };
+
     const renderQuoteHtml = msg => msg.replyToMsgId
       ? `<button type="button" class="vf-chat-quote" data-reply-to="${esc(msg.replyToMsgId)}"><span>↩ ответ</span><b>${esc(msg.replyText || 'Сообщение')}</b></button>`
       : '';
@@ -340,73 +346,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       if (nextMsgId) rowsByMsgId.set(nextMsgId, row);
       if (nextClientId) rowsByClientId.set(nextClientId, row);
 
-      messagesById.set(nextMsgId || nextClientId, cur);
       if (nextMsgId) messagesById.set(nextMsgId, cur);
       if (nextClientId) messagesById.set(nextClientId, cur);
-
-      const bubble = row.querySelector('.vf-chat-bubble');
-      if (bubble) bubble.innerHTML = `${renderQuoteHtml(cur)}<span class="vf-chat-text">${esc(cur.text || '')}</span>`;
-
-      row.querySelector('.vf-chat-reactions')?.remove();
-      const reactionsHtml = renderReactions(cur.reactions);
-      if (reactionsHtml) {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = reactionsHtml;
-        const before = row.querySelector('.vf-chat-statusline,.vf-chat-time');
-        row.insertBefore(tmp.firstElementChild, before || null);
-      }
-
-      row.querySelector('.vf-chat-status-btn')?.replaceChildren(document.createTextNode(statusLabel(cur)));
-      row.querySelector('.vf-chat-retry')?.toggleAttribute('hidden', cur.localStatus !== 'failed');
-      return true;
-    };
-
-    const pushIncomingMessage = msg => {
-      if (!msg || msg.fromFriendId !== friendId) return false;
-      append({
-        msgId: msg.msgId || msg.pushId || `push-${Date.now()}`,
-        clientMsgId: msg.clientMsgId || '',
-        fromFriendId: msg.fromFriendId,
-        toFriendId: core.identity?.friendId,
-        text: msg.text || '',
-        replyToMsgId: '',
-        replyText: '',
-        reactions: msg.reactions || {},
-        createdAt: msg.createdAt || Date.now(),
-        deliveredAt: msg.deliveredAt || msg.createdAt || Date.now(),
-        readAt: msg.readAt || Date.now()
-      });
-      lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
-      log.scrollTop = log.scrollHeight;
-      return true;
-    };
-
-    const normalizeMyReactions = msg => {
-      let mine = msg?.reactions?.[core.identity?.friendId];
-      if (typeof mine === 'string') mine = mine ? [mine] : [];
-      return Array.isArray(mine) ? mine.filter(Boolean).slice(0, 3) : [];
-    };
-
-    const renderQuoteHtml = msg => msg.replyText
-      ? `<div class="vf-chat-quote"><span>↩ ответ</span><b>${esc(msg.replyText)}</b></div>`
-      : '';
-
-    const renderReactions = reactions => {
-      const entries = Object.entries(reactions || {}).flatMap(([uid, raw]) => {
-        const arr = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).filter(Boolean).slice(0, 3);
-        return arr.map(emoji => ({ uid, emoji }));
-      });
-      if (!entries.length) return '';
-      return `<div class="vf-chat-reactions">${entries.map(x => `<span class="${x.uid === core.identity?.friendId ? 'is-my' : 'is-peer'}">${esc(x.emoji)}</span>`).join('')}</div>`;
-    };
-
-    const updateMessage = msg => {
-      if (!msg.msgId) return false;
-      const row = rowsByMsgId.get(msg.msgId);
-      if (!row) return false;
-
-      const cur = { ...(messagesById.get(msg.msgId) || {}), ...msg };
-      messagesById.set(msg.msgId, cur);
 
       const bubble = row.querySelector('.vf-chat-bubble');
       if (bubble) bubble.innerHTML = `${renderQuoteHtml(cur)}<span class="vf-chat-text">${esc(cur.text || '')}</span>`;
@@ -468,8 +409,28 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       log.scrollTop = log.scrollHeight;
     };
 
+    const pushIncomingMessage = msg => {
+      if (!msg || msg.fromFriendId !== friendId) return false;
+      append({
+        msgId: msg.msgId || msg.pushId || `push-${Date.now()}`,
+        clientMsgId: msg.clientMsgId || '',
+        fromFriendId: msg.fromFriendId,
+        toFriendId: core.identity?.friendId,
+        text: msg.text || '',
+        replyToMsgId: '',
+        replyText: '',
+        reactions: msg.reactions || {},
+        createdAt: msg.createdAt || Date.now(),
+        deliveredAt: msg.deliveredAt || msg.createdAt || Date.now(),
+        readAt: msg.readAt || Date.now()
+      });
+      lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
+      log.scrollTop = log.scrollHeight;
+      return true;
+    };
+
     const load = async () => {
-      if (document.hidden || loadBusy) return;
+      if (loadBusy) return;
       loadBusy = true;
       try {
         const items = await core.getChatMessages({ friendId, after: lastAt });
@@ -490,7 +451,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       timer = setTimeout(async () => {
         await load();
         scheduleLoad();
-      }, Math.min(18000, 4500 + loadFails * 2500));
+      }, Math.min(8000, 2000 + loadFails * 1500));
     };
 
     const sendText = async text => {
