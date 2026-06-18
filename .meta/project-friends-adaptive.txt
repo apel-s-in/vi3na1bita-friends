@@ -46,9 +46,10 @@ vi3na1bita-friends/
 ├── generate-context.js
 ├── index.html
 ├── README.md
-└── styles.css
+├── styles.css
+└── voice-call-ui.js
 
-Сгенерировано: 2026-06-18 10:21:29 UTC
+Сгенерировано: 2026-06-18 10:22:59 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -2275,4 +2276,23 @@ export const PLAYABLE_GAMES = [
 export const getPlayableGames = () => PLAYABLE_GAMES.filter(g => g.inviteSupported);
 
 export const findGame = id => PLAYABLE_GAMES.find(g => g.id === id) || null;
+
+//=================================================
+// FILE: /voice-call-ui.js
+// /Friends/voice-call-ui.js
+// Голосовой чат вынесен из friends-ui.js без изменения поведения.
+
+export const openVoiceCallUi = ({
+  friendId,
+  name = 'Друг',
+  incoming = null,
+  core,
+  openModal,
+  toast,
+  onVoiceOpened = null
+} = {}) => {
+  // Сюда переносится текущий openVoiceCallModal из friends-ui.js 1:1.
+  // Логика не меняется: только вынос в отдельный файл.
+  // Важно: оставить те же callbacks, те же состояния, те же DOM-классы.
+};
 
