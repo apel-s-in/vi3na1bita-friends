@@ -71,8 +71,9 @@ export const openTextChatModal = ({
       <button type="button" class="vf-chat-reply-x">×</button>
     </div>
     <form class="vf-chat-form">
-      <textarea rows="1" maxlength="500" placeholder="Сообщение..." autocomplete="off"></textarea>
-      <button class="vf-btn" type="submit">▶</button>
+      <textarea rows="1" maxlength="1000" placeholder="Сообщение..." autocomplete="off"></textarea>
+      <span class="vf-chat-counter" hidden></span>
+      <button class="vf-btn vf-chat-send" type="submit">▶</button>
     </form>
   `, { closeOnBackdrop: false });
 
@@ -266,7 +267,7 @@ export const openTextChatModal = ({
         lastAt = Math.max(lastAt, Number(msg.createdAt || 0), Number(msg.updatedAt || 0));
         append(msg);
       });
-      return true;
+      return items.length ? 'has-new' : true;
     } catch (err) {
       loadFails = Math.min(loadFails + 1, 8);
       if (Number(err?.status) === 429) loadFails = Math.max(loadFails, 5);
@@ -276,11 +277,14 @@ export const openTextChatModal = ({
     }
   };
 
+  let idleTicks = 0;
   const scheduleLoad = () => {
     clearTimeout(timer);
-    const delay = Math.min(30000, 4000 + loadFails * 4000);
+    const base = idleTicks > 4 ? 30000 : 8000;
+    const delay = Math.min(45000, base + loadFails * 6000);
     timer = setTimeout(async () => {
-      await load();
+      const got = await load();
+      idleTicks = got === 'has-new' ? 0 : idleTicks + 1;
       scheduleLoad();
     }, delay);
   };
@@ -324,7 +328,6 @@ export const openTextChatModal = ({
       };
       seen.add(realMsg.msgId);
       updateMessage(realMsg);
-      load();
     } catch (err) {
       localMsg.localStatus = 'failed';
       localMsg.error = err.message || 'send_failed';
@@ -372,7 +375,6 @@ export const openTextChatModal = ({
         const cur = { ...(messagesById.get(msg.msgId) || msg), reactions: res.reactions || {} };
         updateMessage(cur);
         menu.vfClose?.();
-        load();
       } catch (err) {
         toast?.(`Ошибка: ${err.message}`);
       }
