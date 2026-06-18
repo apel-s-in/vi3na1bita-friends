@@ -414,10 +414,16 @@ export const openTextChatModal = ({
     ov.vfClose?.();
   };
 
+  const counterEl = ov.querySelector('.vf-chat-counter');
   const autoGrow = () => {
     if (!input) return;
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, Math.max(160, Math.floor(window.innerHeight * 0.34)))}px`;
+    if (counterEl) {
+      const left = 1000 - input.value.length;
+      counterEl.hidden = left > 200;
+      counterEl.textContent = String(left);
+    }
     log.scrollTop = log.scrollHeight;
   };
 
