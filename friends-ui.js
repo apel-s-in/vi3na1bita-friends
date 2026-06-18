@@ -3,6 +3,7 @@
 
 import { getPlayableGames } from './games-registry.js';
 import { openTextChatModal } from './chat-text-ui.js';
+import { openVoiceCallUi } from './voice-call-ui.js';
 
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
@@ -242,7 +243,15 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     }
   });
 
-  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => {
+  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => openVoiceCallUi({
+    friendId,
+    name,
+    incoming,
+    core,
+    openModal,
+    toast,
+    onVoiceOpened
+  });
     let pc = null;
     let localStream = null;
     let roomId = incoming?.roomId || '';
