@@ -48,7 +48,7 @@ vi3na1bita-friends/
 ├── README.md
 └── styles.css
 
-Сгенерировано: 2026-06-17 14:42:12 UTC
+Сгенерировано: 2026-06-18 10:19:00 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -830,11 +830,11 @@ export const openTextChatModal = ({
   const renderMessageInner = msg => {
     const mine = msg.fromFriendId === core.identity?.friendId;
     return `
-      ${renderQuoteHtml(msg)}
       <div class="vf-chat-bubble" role="button" tabindex="0">
+        ${renderQuoteHtml(msg)}
         <span class="vf-chat-text">${esc(msg.text || '')}</span>
+        ${renderReactions(msg.reactions)}
       </div>
-      ${renderReactions(msg.reactions)}
       ${mine ? `
         <div class="vf-chat-statusline">
           <button class="vf-chat-retry" type="button" ${msg.localStatus === 'failed' ? '' : 'hidden'}>↻</button>
