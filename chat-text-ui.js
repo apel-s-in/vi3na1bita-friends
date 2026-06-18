@@ -116,11 +116,11 @@ export const openTextChatModal = ({
   const renderMessageInner = msg => {
     const mine = msg.fromFriendId === core.identity?.friendId;
     return `
-      ${renderQuoteHtml(msg)}
       <div class="vf-chat-bubble" role="button" tabindex="0">
+        ${renderQuoteHtml(msg)}
         <span class="vf-chat-text">${esc(msg.text || '')}</span>
+        ${renderReactions(msg.reactions)}
       </div>
-      ${renderReactions(msg.reactions)}
       ${mine ? `
         <div class="vf-chat-statusline">
           <button class="vf-chat-retry" type="button" ${msg.localStatus === 'failed' ? '' : 'hidden'}>↻</button>
