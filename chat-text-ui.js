@@ -418,7 +418,9 @@ export const openTextChatModal = ({
   const autoGrow = () => {
     if (!input) return;
     input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, Math.max(160, Math.floor(window.innerHeight * 0.34)))}px`;
+    const cap = Math.max(160, Math.floor(window.innerHeight * 0.40));
+    input.style.height = `${Math.min(input.scrollHeight, cap)}px`;
+    input.classList.toggle('is-scroll', input.scrollHeight > cap);
     if (counterEl) {
       const left = 1000 - input.value.length;
       counterEl.hidden = left > 200;
