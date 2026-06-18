@@ -143,7 +143,7 @@ export class FriendsCore {
   async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '', clientMsgId = '' }) {
     return this._req('chat_send', {
       toFriendId: safe(toFriendId),
-      text: safe(text).slice(0, 500),
+      text: safe(text).slice(0, 1000),
       replyToMsgId: safe(replyToMsgId),
       replyText: safe(replyText).slice(0, 160),
       clientMsgId: safe(clientMsgId)
