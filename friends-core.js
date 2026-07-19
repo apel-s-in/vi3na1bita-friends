@@ -274,6 +274,16 @@ export class FriendsCore {
     return this.crypto.decryptMessages(items);
   }
 
+  async getChatMessage({ friendId, msgId } = {}) {
+    const result = await this._req('chat_message_get', {
+      friendId: safe(friendId),
+      msgId: safe(msgId)
+    });
+
+    if (!result.message) return null;
+    return this.crypto.decryptMessage(result.message);
+  }
+  
   async decryptChatMessage(message) {
     return this.crypto.decryptMessage(message);
   }
