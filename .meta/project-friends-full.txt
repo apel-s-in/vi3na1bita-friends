@@ -51,7 +51,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 16:15:08 UTC
+Сгенерировано: 2026-07-19 17:42:44 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -504,13 +504,13 @@ try {
     body{position:fixed;inset:0}
     .vf-app{position:fixed !important;inset:0 !important;max-width:420px;margin:0 auto}
   </style>
-  <link rel="stylesheet" href="./styles.css?v=8.8.2">
+  <link rel="stylesheet" href="./styles.css?v=8.8.3">
 </head>
 <body>
   <main class="vf-app" id="app"></main>
   <script type="module">
-    import { FriendsCore } from './friends-core.js?v=8.8.2';
-    import { mountFriendsUI } from './friends-ui.js?v=8.8.2';
+    import { FriendsCore } from './friends-core.js?v=8.8.3';
+    import { mountFriendsUI } from './friends-ui.js?v=8.8.3';
 
     const core = new FriendsCore();
     const root = document.getElementById('app');
@@ -1679,9 +1679,9 @@ export default FriendsCore;
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
 
-import { getPlayableGames } from './games-registry.js?v=8.8.2';
-import { openTextChatModal } from './chat-text-ui.js?v=8.8.2';
-import { openVoiceCallUi } from './voice-call-ui.js?v=8.8.2';
+import { getPlayableGames } from './games-registry.js?v=8.8.3';
+import { openTextChatModal } from './chat-text-ui.js?v=8.8.3';
+import { openVoiceCallUi } from './voice-call-ui.js?v=8.8.3';
 
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
