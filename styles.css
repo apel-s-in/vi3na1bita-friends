@@ -117,3 +117,17 @@
 .vf-chat-settings-panel{display:grid;gap:8px}
 .vf-chat-retention{display:grid;gap:6px;text-align:left;color:var(--vf-muted);font-size:11px;font-weight:800}
 .vf-chat-retention select{width:100%;min-height:40px;padding:0 10px;border-radius:11px;background:#11162f;border:1px solid rgba(255,255,255,.12);color:#fff;outline:none}
+.vf-crypto-body{display:grid;gap:10px;text-align:left}
+.vf-crypto-section{display:grid;gap:8px;padding:10px;border-radius:14px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.07)}
+.vf-crypto-section h3{margin:0;color:#fff;font-size:13px}
+.vf-crypto-section p,.vf-crypto-footnote{margin:0;color:var(--vf-muted);font-size:11px;line-height:1.4}
+.vf-crypto-device{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:9px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.06)}
+.vf-crypto-device>div{display:grid;gap:3px;min-width:0}
+.vf-crypto-device b{font-size:12px;color:#fff}
+.vf-crypto-device small{font-size:10px;color:var(--vf-muted)}
+.vf-crypto-device code{font-size:9px;color:var(--vf-cyan);overflow-wrap:anywhere}
+.vf-crypto-device em{font-size:9px;color:#ffb74d;font-style:normal}
+.vf-crypto-device em.is-ok{color:var(--vf-green)}
+.vf-crypto-device .vf-btn{min-height:34px;padding:0 9px;font-size:10px}
+.vf-crypto-warning{padding:10px;border-radius:12px;background:rgba(255,183,77,.09);border:1px solid rgba(255,183,77,.28);color:#ffe0a8;font-size:11px;line-height:1.4}
+.vf-safety-number{display:block;padding:10px;border-radius:10px;background:#050817;color:#adffdf;font-size:12px;font-weight:900;line-height:1.55;letter-spacing:.04em;overflow-wrap:anywhere;text-align:center}
