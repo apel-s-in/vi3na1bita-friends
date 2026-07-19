@@ -37,7 +37,8 @@ vi3na1bita-friends/
 ├── .github/
 │   └── workflows/
 │       ├── deploy.yml
-│       └── generate-context.yml
+│       ├── generate-context.yml
+│       └── validate.yml
 ├── .meta/
 ├── .nojekyll
 ├── ai-rules.txt
@@ -53,7 +54,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 23:03:24 UTC
+Сгенерировано: 2026-07-19 23:11:02 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -735,6 +736,36 @@ Social layer (friends / chat / push / game invites) for vi3na1bita ecosystem.
 .vf-crypto-device .vf-btn{min-height:34px;padding:0 9px;font-size:10px}
 .vf-crypto-warning{padding:10px;border-radius:12px;background:rgba(255,183,77,.09);border:1px solid rgba(255,183,77,.28);color:#ffe0a8;font-size:11px;line-height:1.4}
 .vf-safety-number{display:block;padding:10px;border-radius:10px;background:#050817;color:#adffdf;font-size:12px;font-weight:900;line-height:1.55;letter-spacing:.04em;overflow-wrap:anywhere;text-align:center}
+
+//=================================================
+// FILE: /.github/workflows/validate.yml
+name: Validate Friends module
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate ESM syntax
+        run: |
+          node --input-type=module --check < friends-core.js
+          node --input-type=module --check < friends-crypto.js
+          node --input-type=module --check < crypto-devices-ui.js
+          node --input-type=module --check < friends-ui.js
+          node --input-type=module --check < chat-text-ui.js
+          node --input-type=module --check < voice-call-ui.js
+          node --input-type=module --check < games-registry.js
 
 //=================================================
 // FILE: /chat-text-ui.js
