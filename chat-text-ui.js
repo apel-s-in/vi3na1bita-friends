@@ -91,8 +91,36 @@ export const openTextChatModal = ({
   const log = ov.querySelector('.vf-chat-log');
   const input = ov.querySelector('textarea');
   const panel = ov.querySelector('.vf-chat-settings-panel');
+  const retentionSelect = ov.querySelector('#vf-chat-retention');
   const replyBox = ov.querySelector('.vf-chat-reply');
   const replyTextEl = replyBox.querySelector('span');
+
+  core.getChatSettings(friendId).then(settings => {
+    if (retentionSelect) {
+      retentionSelect.value = String(settings?.retentionDays || 30);
+    }
+  }).catch(() => {});
+
+  retentionSelect?.addEventListener('change', async () => {
+    try {
+      await core.setChatRetention(
+        friendId,
+        Number(retentionSelect.value)
+      );
+
+      lastAt = 0;
+      seen.clear();
+      rowsByMsgId.clear();
+      rowsByClientId.clear();
+      messagesById.clear();
+      log.innerHTML = '';
+
+      await load();
+      toast?.('Срок хранения сохранён');
+    } catch (err) {
+      toast?.(`Ошибка: ${err.message}`);
+    }
+  });
 
   const renderReply = () => {
     if (!replyTo) {
