@@ -1,6 +1,6 @@
 // /Friends/chat-text-ui.js
 // Текстовый чат: UI, optimistic-send, reply/quote, reactions, retry, adaptive polling.
-
+import { openCryptoDevicesUi } from './crypto-devices-ui.js?v=8.8.7';
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
@@ -71,6 +71,7 @@ export const openTextChatModal = ({
           <option value="30">1 месяц</option>
         </select>
       </label>
+      <button class="vf-btn vf-sec" type="button" id="vf-chat-crypto">🔐 Устройства и проверка ключей</button>
       <button class="vf-btn vf-sec" type="button" id="vf-chat-clear">Очистить только у меня</button>
       <button class="vf-btn vf-danger" type="button" id="vf-chat-purge-both">Удалить переписку у обоих</button>
     </div>
@@ -532,7 +533,15 @@ export const openTextChatModal = ({
     replyTo = null;
     renderReply();
   };
-
+  ov.querySelector('#vf-chat-crypto').onclick = () => {
+    openCryptoDevicesUi({
+      core,
+      friendId,
+      name,
+      openModal,
+      toast
+    });
+  };
   ov.querySelector('#vf-chat-clear').onclick = async () => {
     if (!confirm('Скрыть всю историю этого диалога только у вас? У собеседника сообщения останутся.')) return;
 
