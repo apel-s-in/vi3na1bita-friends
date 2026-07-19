@@ -361,6 +361,51 @@ export class FriendsCore {
     return this.crypto.decryptMessage(message);
   }
 
+  async getOwnCryptoDevices() {
+    const result = await this._req('crypto_device_self_list', {});
+    return Array.isArray(result.items) ? result.items : [];
+  }
+
+  async getCryptoDevices(friendId) {
+    return this.crypto.listDevices(friendId);
+  }
+
+  async getLocalCryptoDevice() {
+    return this.crypto.getLocalDeviceInfo();
+  }
+
+  async revokeCryptoDevice(deviceId) {
+    const local = await this.crypto.getLocalDeviceInfo();
+    const result = await this._req('crypto_device_revoke', {
+      deviceId: safe(deviceId)
+    });
+
+    if (local?.deviceId === safe(deviceId)) {
+      await this.crypto.resetLocalDevice();
+    }
+
+    return result;
+  }
+
+  async resetCryptoDevices() {
+    const result = await this._req('crypto_device_reset', {});
+    await this.crypto.resetLocalDevice();
+    await this.crypto.ensureDevice();
+    return result;
+  }
+
+  async getSafetyNumber(friendId) {
+    return this.crypto.buildSafetyNumber(friendId);
+  }
+
+  getSafetyVerification(friendId) {
+    return this.crypto.getSafetyVerification(friendId);
+  }
+
+  setSafetyVerified(friendId, safety) {
+    return this.crypto.setSafetyVerified(friendId, safety);
+  }
+
   async clearChat(friendId) {
     return this._req('chat_clear', { friendId: safe(friendId) });
   }
