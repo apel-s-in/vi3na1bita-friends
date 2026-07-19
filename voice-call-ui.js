@@ -315,7 +315,14 @@ export const openVoiceCallUi = ({
     await sendSignal('bye', { at: Date.now() });
     const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
     cleanupVoice();
-    await core.endVoiceCall({ friendId, callId, roomId, status, durationSec }).catch(() => null);
+    await core.endVoiceCall({
+      friendId,
+      callId,
+      roomId,
+      roomSecret,
+      status,
+      durationSec
+    }).catch(() => null);
     ov.vfClose?.();
   };
 
