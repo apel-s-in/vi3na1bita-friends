@@ -405,6 +405,16 @@ export const openTextChatModal = ({
   };
 
   const openMessageMenu = msg => {
+    if (msg?.decryptFailed) {
+      toast?.('Сообщение нельзя изменить: ключ расшифровки недоступен');
+      return;
+    }
+
+    if (msg?.deletedAt) {
+      toast?.('Сообщение уже удалено');
+      return;
+    }
+
     const menu = openModal(`
       <div class="vf-chat-menu">
         <div class="vf-chat-reacts">
@@ -448,14 +458,28 @@ export const openTextChatModal = ({
     menu.querySelector('[data-m="delete"]').onclick = async () => {
       if (!confirm('Удалить сообщение у обоих собеседников?')) return;
       try {
-        await core.deleteChatMessage({
+        const result = await core.deleteChatMessage({
           friendId,
           msgId: msg.msgId,
           message: msg
         });
-        rowsByMsgId.get(msg.msgId)?.remove();
-        rowsByMsgId.delete(msg.msgId);
-        messagesById.delete(msg.msgId);
+
+        updateMessage({
+          ...msg,
+          text: 'Сообщение удалено',
+          replyToMsgId: '',
+          replyText: '',
+          reactions: {},
+          deletedAt: Number(result.at || Date.now()),
+          updatedAt: Number(result.at || Date.now()),
+          encrypted: true,
+          cryptoVersion: 2
+        });
+
+        lastAt = Math.max(
+          lastAt,
+          Number(result.at || Date.now())
+        );
         menu.vfClose?.();
       } catch (err) {
         toast?.(`Ошибка: ${err.message}`);
