@@ -227,11 +227,19 @@ export class FriendsCore {
     });
   }
 
-  async endVoiceCall({ friendId, callId = '', roomId = '', status = 'ended', durationSec = 0 } = {}) {
+  async endVoiceCall({
+    friendId,
+    callId = '',
+    roomId = '',
+    roomSecret = '',
+    status = 'ended',
+    durationSec = 0
+  } = {}) {
     return this._req('voice_call_end', {
       friendId: safe(friendId),
       callId: safe(callId),
       roomId: safe(roomId),
+      roomSecret: safe(roomSecret),
       status: safe(status),
       durationSec: Number(durationSec || 0)
     });
