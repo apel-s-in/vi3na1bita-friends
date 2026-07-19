@@ -156,7 +156,7 @@ export const openTextChatModal = ({
     return `
       <div class="vf-chat-bubble" role="button" tabindex="0">
         ${renderQuoteHtml(msg)}
-        <span class="vf-chat-text">${esc(msg.text || '')}</span>
+        <span class="vf-chat-text">${msg.encrypted ? '🔒 ' : ''}${esc(msg.text || '')}</span>
         ${renderReactions(msg.reactions)}
       </div>
       ${mine ? `
@@ -276,6 +276,12 @@ export const openTextChatModal = ({
 
   const pushIncomingMessage = msg => {
     if (!msg || msg.fromFriendId !== friendId) return false;
+
+    if (Number(msg.cryptoVersion || 0) === 2 && !msg.crypto) {
+      load().catch(() => false);
+      return true;
+    }
+
     append({
       msgId: msg.msgId || msg.pushId || `push-${Date.now()}`,
       clientMsgId: msg.clientMsgId || '',
@@ -339,7 +345,9 @@ export const openTextChatModal = ({
       createdAt: Date.now(),
       deliveredAt: 0,
       readAt: 0,
-      localStatus: 'sending'
+      localStatus: 'sending',
+      cryptoVersion: core.chatE2eeV2 ? 2 : 1,
+      encrypted: !!core.chatE2eeV2
     };
 
     append(localMsg);
@@ -361,6 +369,8 @@ export const openTextChatModal = ({
         msgId: res.msgId || localId,
         createdAt,
         deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
+        cryptoVersion: Number(res.cryptoVersion || localMsg.cryptoVersion || 1),
+        encrypted: Number(res.cryptoVersion || localMsg.cryptoVersion || 1) === 2,
         localStatus: ''
       };
       seen.add(realMsg.msgId);
@@ -408,7 +418,12 @@ export const openTextChatModal = ({
 
     menu.querySelectorAll('[data-emoji]').forEach(b => b.onclick = async () => {
       try {
-        const res = await core.reactChatMessage({ friendId, msgId: msg.msgId, emoji: b.dataset.emoji });
+        const res = await core.reactChatMessage({
+          friendId,
+          msgId: msg.msgId,
+          emoji: b.dataset.emoji,
+          message: msg
+        });
         const cur = { ...(messagesById.get(msg.msgId) || msg), reactions: res.reactions || {} };
         updateMessage(cur);
         menu.vfClose?.();
@@ -433,7 +448,11 @@ export const openTextChatModal = ({
     menu.querySelector('[data-m="delete"]').onclick = async () => {
       if (!confirm('Удалить сообщение у обоих собеседников?')) return;
       try {
-        await core.deleteChatMessage({ friendId, msgId: msg.msgId });
+        await core.deleteChatMessage({
+          friendId,
+          msgId: msg.msgId,
+          message: msg
+        });
         rowsByMsgId.get(msg.msgId)?.remove();
         rowsByMsgId.delete(msg.msgId);
         messagesById.delete(msg.msgId);
