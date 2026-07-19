@@ -223,7 +223,7 @@ export const openVoiceCallUi = ({
       roomBusy = true;
 
       try {
-        const res = await core.getRoom(roomId);
+        const res = await core.getRoom(roomId, roomSecret);
         const room = res?.room || null;
         roomFails = 0;
 
