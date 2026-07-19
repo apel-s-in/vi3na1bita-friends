@@ -52,7 +52,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 22:13:16 UTC
+Сгенерировано: 2026-07-19 22:25:17 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1618,6 +1618,16 @@ export class FriendsCore {
     return this.crypto.decryptMessages(items);
   }
 
+  async getChatMessage({ friendId, msgId } = {}) {
+    const result = await this._req('chat_message_get', {
+      friendId: safe(friendId),
+      msgId: safe(msgId)
+    });
+
+    if (!result.message) return null;
+    return this.crypto.decryptMessage(result.message);
+  }
+  
   async decryptChatMessage(message) {
     return this.crypto.decryptMessage(message);
   }
