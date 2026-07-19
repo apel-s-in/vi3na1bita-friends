@@ -63,7 +63,16 @@ export const openTextChatModal = ({
       <button class="vf-btn vf-sec vf-chat-close" type="button" id="vf-chat-close" title="Закрыть">✕</button>
     </div>
     <div class="vf-chat-settings-panel" hidden>
-      <button class="vf-btn vf-danger" type="button" id="vf-chat-clear">Очистить чат</button>
+      <label class="vf-chat-retention">
+        <span>Хранить сообщения в этом диалоге</span>
+        <select id="vf-chat-retention">
+          <option value="1">1 день</option>
+          <option value="7">1 неделю</option>
+          <option value="30">1 месяц</option>
+        </select>
+      </label>
+      <button class="vf-btn vf-sec" type="button" id="vf-chat-clear">Очистить только у меня</button>
+      <button class="vf-btn vf-danger" type="button" id="vf-chat-purge-both">Удалить переписку у обоих</button>
     </div>
     <div class="vf-chat-log" aria-live="polite"></div>
     <div class="vf-chat-reply" hidden>
@@ -437,7 +446,8 @@ export const openTextChatModal = ({
   };
 
   ov.querySelector('#vf-chat-clear').onclick = async () => {
-    if (!confirm('Очистить историю этого чата?')) return;
+    if (!confirm('Скрыть всю историю этого диалога только у вас? У собеседника сообщения останутся.')) return;
+
     try {
       await core.clearChat(friendId);
       lastAt = Date.now();
@@ -447,9 +457,28 @@ export const openTextChatModal = ({
       messagesById.clear();
       log.innerHTML = '';
       panel.hidden = true;
-      toast?.('Чат очищен');
+      toast?.('Чат очищен только у вас');
     } catch (err) {
       toast?.(`Ошибка очистки: ${err.message}`);
+    }
+  };
+
+  ov.querySelector('#vf-chat-purge-both').onclick = async () => {
+    if (!confirm('Безвозвратно удалить всю переписку у вас и у собеседника?')) return;
+    if (!confirm('Это действие нельзя отменить. Удалить переписку у обоих?')) return;
+
+    try {
+      await core.purgeChatForBoth(friendId);
+      lastAt = Date.now();
+      seen.clear();
+      rowsByMsgId.clear();
+      rowsByClientId.clear();
+      messagesById.clear();
+      log.innerHTML = '';
+      panel.hidden = true;
+      toast?.('Переписка удалена у обоих');
+    } catch (err) {
+      toast?.(`Ошибка удаления: ${err.message}`);
     }
   };
 
