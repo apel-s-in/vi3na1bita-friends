@@ -52,7 +52,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 22:35:43 UTC
+Сгенерировано: 2026-07-19 22:40:24 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -2048,7 +2048,16 @@ const generateDeviceKey = async ownerId => {
     createdAt: Date.now()
   });
 };
+const dbDelete = async ownerId => {
+  const db = await openDb();
 
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(ownerId);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+};
 const importPublicKey = publicJwk =>
   crypto.subtle.importKey(
     'jwk',
@@ -2388,11 +2397,121 @@ export class FriendsCrypto {
     }));
   }
 
+  async getLocalDeviceInfo() {
+    const ownerId = this.identity?.friendId;
+    if (!ownerId) return null;
+
+    const device = this.device || await dbGet(ownerId);
+    if (!device) return null;
+
+    return {
+      ownerId,
+      deviceId: device.deviceId,
+      publicJwk: device.publicJwk,
+      fingerprint: device.fingerprint,
+      createdAt: device.createdAt,
+      privateKeyPresent: !!device.privateKey,
+      privateKeyExtractable: !!device.privateKey?.extractable
+    };
+  }
+
+  async resetLocalDevice() {
+    const ownerId = this.identity?.friendId;
+    if (!ownerId) throw new Error('crypto_identity_required');
+
+    await dbDelete(ownerId);
+    this.device = null;
+    return true;
+  }
+
+  async buildSafetyNumber(friendId) {
+    const targetId = safe(friendId);
+    const ownerId = this.identity?.friendId;
+
+    if (!ownerId || !targetId) {
+      throw new Error('crypto_friend_required');
+    }
+
+    const items = await this.listDevices(targetId);
+    const participants = new Set([ownerId, targetId]);
+    const rows = items
+      .filter(item =>
+        participants.has(safe(item.ownerId)) &&
+        safe(item.deviceId) &&
+        safe(item.fingerprint)
+      )
+      .map(item => ({
+        ownerId: safe(item.ownerId),
+        deviceId: safe(item.deviceId),
+        fingerprint: safe(item.fingerprint)
+      }))
+      .sort((a, b) =>
+        `${a.ownerId}:${a.deviceId}`.localeCompare(
+          `${b.ownerId}:${b.deviceId}`
+        )
+      );
+
+    if (
+      !rows.some(item => item.ownerId === ownerId) ||
+      !rows.some(item => item.ownerId === targetId)
+    ) {
+      throw new Error('crypto_peer_not_ready');
+    }
+
+    const canonical = JSON.stringify({
+      v: 2,
+      participants: [ownerId, targetId].sort(),
+      devices: rows
+    });
+
+    const digest = await sha256(canonical);
+    const digits = [...digest]
+      .map(byte => String(byte).padStart(3, '0'))
+      .join('')
+      .slice(0, 60);
+
+    const groups = digits.match(/.{1,5}/g) || [];
+
+    return {
+      version: 2,
+      friendId: targetId,
+      safetyId: b64url(digest),
+      display: groups.join(' '),
+      groups,
+      devices: rows,
+      uri: `vi3friends://verify?v=2&a=${encodeURIComponent(ownerId)}&b=${encodeURIComponent(targetId)}&s=${encodeURIComponent(b64url(digest))}`
+    };
+  }
+
+  getSafetyVerification(friendId) {
+    const key = `vf:safety:v2:${safe(this.identity?.friendId)}:${safe(friendId)}`;
+
+    try {
+      return JSON.parse(localStorage.getItem(key) || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  setSafetyVerified(friendId, safety) {
+    const key = `vf:safety:v2:${safe(this.identity?.friendId)}:${safe(friendId)}`;
+    const row = {
+      safetyId: safe(safety?.safetyId),
+      verifiedAt: Date.now()
+    };
+
+    localStorage.setItem(key, JSON.stringify(row));
+    return row;
+  }
+  
   async revokeCurrentDevice() {
     const device = await this.ensureDevice();
-    return this.request('crypto_device_revoke', {
+    const result = await this.request('crypto_device_revoke', {
       deviceId: device.deviceId
     });
+
+    await this.resetLocalDevice();
+    return result;
   }
 }
 
