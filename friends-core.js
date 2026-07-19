@@ -187,6 +187,78 @@ export class FriendsCore {
       throw new Error('chat_e2ee_message_required');
     }
 
+    let current = message;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (current.decryptFailed || current.deletedAt) {
+        throw new Error('chat_message_not_editable');
+      }
+
+      const reactions = {
+        ...(current.reactions || {})
+      };
+      const me = this.identity.friendId;
+      const value = safe(emoji).slice(0, 8);
+
+      let mine = Array.isArray(reactions[me])
+        ? [...reactions[me]]
+        : (reactions[me] ? [reactions[me]] : []);
+
+      mine = mine.includes(value)
+        ? mine.filter(item => item !== value)
+        : [...mine, value].slice(-3);
+
+      if (mine.length) reactions[me] = mine;
+      else delete reactions[me];
+
+      const cryptoPack = await this.crypto.encryptPayload({
+        friendId,
+        kind: 'reaction',
+        subjectMsgId: msgId,
+        payload: {
+          type: 'message',
+          text: safe(current.text).slice(0, 1000),
+          replyToMsgId: safe(current.replyToMsgId),
+          replyText: safe(current.replyText).slice(0, 160),
+          reactions
+        }
+      });
+
+      try {
+        const result = await this._req('chat_update_v2', {
+          friendId: safe(friendId),
+          msgId: safe(msgId),
+          expectedRevision: Number(current.revision || 1),
+          crypto: cryptoPack
+        });
+
+        return {
+          ...result,
+          reactions
+        };
+      } catch (error) {
+        if (
+          !String(error?.message || '').includes('chat_revision_conflict') ||
+          attempt >= 2
+        ) {
+          throw error;
+        }
+
+        current = await this.getChatMessage({
+          friendId,
+          msgId
+        });
+
+        if (!current) throw new Error('chat_message_not_found');
+      }
+    }
+
+    throw new Error('chat_revision_conflict');
+  }) {
+    if (Number(message?.cryptoVersion || 0) !== 2) {
+      throw new Error('chat_e2ee_message_required');
+    }
+
     if (message.decryptFailed || message.deletedAt) {
       throw new Error('chat_message_not_editable');
     }
@@ -256,6 +328,7 @@ export class FriendsCore {
     return this._req('chat_delete_v2', {
       friendId: safe(friendId),
       msgId: safe(msgId),
+      expectedRevision: Number(message?.revision || 1),
       deletedAt,
       crypto: cryptoPack
     });
