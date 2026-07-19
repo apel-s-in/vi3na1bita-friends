@@ -342,7 +342,14 @@ export class FriendsCore {
     });
   }
 }
-
+  async ackVoiceSignals({ roomId, roomSecret, peerId, seqs = [] } = {}) {
+    return this._req('signal_ack', {
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret),
+      peerId: safe(peerId),
+      seqs: [...new Set(seqs.map(safe).filter(Boolean))].slice(0, 200)
+    });
+  }
 const shortCode = inviteId => safe(inviteId).replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase();
 
 export default FriendsCore;
