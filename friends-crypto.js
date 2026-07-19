@@ -240,7 +240,34 @@ export class FriendsCrypto {
     if (!toFriendId) throw new Error('crypto_friend_required');
 
     const devices = await this.listDevices(toFriendId);
-    if (!devices.length) throw new Error('crypto_devices_missing');
+    const participantIds = new Set([fromFriendId, toFriendId]);
+    const uniqueDevices = [...new Map(
+      devices
+        .filter(item =>
+          participantIds.has(safe(item?.ownerId)) &&
+          safe(item?.deviceId) &&
+          item?.publicJwk
+        )
+        .map(item => [
+          `${safe(item.ownerId)}:${safe(item.deviceId)}`,
+          item
+        ])
+    ).values()];
+
+    const myDevices = uniqueDevices.filter(item =>
+      safe(item.ownerId) === fromFriendId
+    );
+    const peerDevices = uniqueDevices.filter(item =>
+      safe(item.ownerId) === toFriendId
+    );
+
+    if (!myDevices.length) {
+      throw new Error('crypto_sender_devices_missing');
+    }
+
+    if (!peerDevices.length) {
+      throw new Error('crypto_peer_not_ready');
+    }
 
     const room = roomIdOf(fromFriendId, toFriendId);
     const normalizedClientId = safe(clientMsgId) ||
@@ -280,7 +307,7 @@ export class FriendsCrypto {
 
     const envelopes = [];
 
-    for (const target of devices) {
+    for (const target of uniqueDevices) {
       const ownerId = safe(target.ownerId);
       const targetDeviceId = safe(target.deviceId);
       if (!ownerId || !targetDeviceId || !target.publicJwk) continue;
