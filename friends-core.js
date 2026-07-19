@@ -36,35 +36,9 @@ export class FriendsCore {
     this.crypto = new FriendsCrypto({
       request: (action, data) => this._req(action, data)
     });
-`` null }) {
-    if (Number(message?.cryptoVersion || 0) !== 2) {
-      return this._req('chat_delete', {
-        friendId: safe(friendId),
-        msgId: safe(msgId)
-      });
-    }
-
-    const deletedAt = Date.now();
-    const cryptoPack = await this.crypto.encryptPayload({
-      friendId,
-      kind: 'tombstone',
-      subjectMsgId: msgId,
-      payload: {
-        type: 'tombstone',
-        deletedAt
-      }
-    });
-
-    return this._req('chat_delete_v2', {
-      friendId: safe(friendId),
-      msgId: safe(msgId),
-      deletedAt,
-      crypto: cryptoPack
-    });
-  }
   }
 
-  // identity сверху: { friendId, displayName, avatar, yandexLinked, deviceStableId }
+  // Identity приходит только от основного приложения.
   setIdentity(identity = {}) {
     this.identity = {
       friendId: safe(identity.friendId),
@@ -75,6 +49,8 @@ export class FriendsCore {
       socialSession: safe(identity.socialSession || ''),
       sessionExpiresAt: Number(identity.sessionExpiresAt || 0)
     };
+
+    this.crypto.setIdentity(this.identity);
     return this.identity;
   }
 
@@ -125,8 +101,15 @@ export class FriendsCore {
   }
 
   async register() {
-    await this._req('player_register', { displayName: this.identity.displayName });
+    await this._req('player_register', {
+      displayName: this.identity.displayName
+    });
     await this.syncProfile();
+
+    if (this.chatE2eeV2) {
+      await this.crypto.ensureDevice();
+    }
+
     return true;
   }
 
@@ -163,37 +146,136 @@ export class FriendsCore {
     return res.presence || {};
   }
 
-  async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '', clientMsgId = '' }) {
-    return this._req('chat_send', {
+  async sendChatMessage({
+    toFriendId,
+    text,
+    replyToMsgId = '',
+    replyText = '',
+    clientMsgId = ''
+  }) {
+    if (!this.chatE2eeV2) {
+      throw new Error('chat_e2ee_required');
+    }
+
+    const cryptoPack = await this.crypto.encryptPayload({
+      friendId: toFriendId,
+      clientMsgId,
+      kind: 'message',
+      payload: {
+        type: 'message',
+        text: safe(text).slice(0, 1000),
+        replyToMsgId: safe(replyToMsgId),
+        replyText: safe(replyText).slice(0, 160),
+        reactions: {}
+      }
+    });
+
+    return this._req('chat_send_v2', {
       toFriendId: safe(toFriendId),
-      text: safe(text).slice(0, 1000),
-      replyToMsgId: safe(replyToMsgId),
-      replyText: safe(replyText).slice(0, 160),
-      clientMsgId: safe(clientMsgId)
+      clientMsgId: cryptoPack.clientMsgId,
+      crypto: cryptoPack
     });
   }
 
-  async reactChatMessage({ friendId, msgId, emoji }) {
-    return this._req('chat_react', {
+  async reactChatMessage({
+    friendId,
+    msgId,
+    emoji,
+    message = null
+  }) {
+    if (Number(message?.cryptoVersion || 0) !== 2) {
+      throw new Error('chat_e2ee_message_required');
+    }
+
+    if (message.decryptFailed || message.deletedAt) {
+      throw new Error('chat_message_not_editable');
+    }
+
+    const reactions = {
+      ...(message.reactions || {})
+    };
+    const me = this.identity.friendId;
+    const value = safe(emoji).slice(0, 8);
+
+    let mine = Array.isArray(reactions[me])
+      ? [...reactions[me]]
+      : (reactions[me] ? [reactions[me]] : []);
+
+    mine = mine.includes(value)
+      ? mine.filter(item => item !== value)
+      : [...mine, value].slice(-3);
+
+    if (mine.length) reactions[me] = mine;
+    else delete reactions[me];
+
+    const cryptoPack = await this.crypto.encryptPayload({
+      friendId,
+      kind: 'reaction',
+      subjectMsgId: msgId,
+      payload: {
+        type: 'message',
+        text: safe(message.text).slice(0, 1000),
+        replyToMsgId: safe(message.replyToMsgId),
+        replyText: safe(message.replyText).slice(0, 160),
+        reactions
+      }
+    });
+
+    const result = await this._req('chat_update_v2', {
       friendId: safe(friendId),
       msgId: safe(msgId),
-      emoji: safe(emoji).slice(0, 8)
+      crypto: cryptoPack
     });
+
+    return {
+      ...result,
+      reactions
+    };
   }
 
-  async deleteChatMessage({ friendId, msgId }) {
-    return this._req('chat_delete', {
+  async deleteChatMessage({
+    friendId,
+    msgId,
+    message = null
+  }) {
+    if (Number(message?.cryptoVersion || 0) !== 2) {
+      throw new Error('chat_e2ee_message_required');
+    }
+
+    const deletedAt = Date.now();
+    const cryptoPack = await this.crypto.encryptPayload({
+      friendId,
+      kind: 'tombstone',
+      subjectMsgId: msgId,
+      payload: {
+        type: 'tombstone',
+        deletedAt
+      }
+    });
+
+    return this._req('chat_delete_v2', {
       friendId: safe(friendId),
-      msgId: safe(msgId)
+      msgId: safe(msgId),
+      deletedAt,
+      crypto: cryptoPack
     });
   }
 
   async getChatMessages({ friendId, after = 0 } = {}) {
-    const res = await this._req('chat_poll', {
+    const result = await this._req('chat_poll', {
       friendId: safe(friendId),
       after: Number(after || 0)
     });
-    return Array.isArray(res.items) ? res.items : [];
+
+    const items = Array.isArray(result.items)
+      ? result.items
+      : [];
+
+    return this.crypto.decryptMessages(items);
+  }
+
+  async decryptChatMessage(message) {
+    return this.crypto.decryptMessage(message);
   }
 
   async clearChat(friendId) {
