@@ -49,7 +49,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 13:45:59 UTC
+Сгенерировано: 2026-07-19 13:54:00 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1514,6 +1514,17 @@ export class FriendsCore {
     return Array.isArray(res.items) ? res.items : [];
   }
 
+  async ackPushes(pushIds = []) {
+    const ids = [...new Set(
+      (Array.isArray(pushIds) ? pushIds : [pushIds])
+        .map(safe)
+        .filter(Boolean)
+    )].slice(0, 100);
+
+    if (!ids.length) return { ok: true, acked: 0 };
+    return this._req('push_ack', { pushIds: ids });
+  }
+  
   async getProfile(targetId) {
     const res = await this._req('profile_get', { targetId: safe(targetId) });
     return res.profile || null;
