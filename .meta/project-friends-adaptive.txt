@@ -49,7 +49,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 14:41:48 UTC
+Сгенерировано: 2026-07-19 15:09:19 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1476,11 +1476,19 @@ export class FriendsCore {
     });
   }
 
-  async endVoiceCall({ friendId, callId = '', roomId = '', status = 'ended', durationSec = 0 } = {}) {
+  async endVoiceCall({
+    friendId,
+    callId = '',
+    roomId = '',
+    roomSecret = '',
+    status = 'ended',
+    durationSec = 0
+  } = {}) {
     return this._req('voice_call_end', {
       friendId: safe(friendId),
       callId: safe(callId),
       roomId: safe(roomId),
+      roomSecret: safe(roomSecret),
       status: safe(status),
       durationSec: Number(durationSec || 0)
     });
