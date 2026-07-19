@@ -41,7 +41,9 @@ export class FriendsCore {
       displayName: safe(identity.displayName || 'Слушатель'),
       avatar: safe(identity.avatar || ''),
       yandexLinked: !!identity.yandexLinked,
-      deviceStableId: safe(identity.deviceStableId || '')
+      deviceStableId: safe(identity.deviceStableId || ''),
+      socialSession: safe(identity.socialSession || ''),
+      sessionExpiresAt: Number(identity.sessionExpiresAt || 0)
     };
     return this.identity;
   }
@@ -58,7 +60,12 @@ export class FriendsCore {
   }
 
   isReady() {
-    return !!this.identity?.friendId && this.identity.yandexLinked;
+    return !!(
+      this.identity?.friendId &&
+      this.identity?.yandexLinked &&
+      this.identity?.socialSession &&
+      Number(this.identity?.sessionExpiresAt || 0) > Date.now()
+    );
   }
 
   async _req(action, data = {}) {
@@ -71,8 +78,7 @@ export class FriendsCore {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
-          'X-Vi3-Player': this.identity.friendId,
-          'X-Vi3-Secret': this.identity.friendId
+          'X-Vi3-Session': this.identity.socialSession
         },
         credentials: 'omit',
         mode: 'cors',
