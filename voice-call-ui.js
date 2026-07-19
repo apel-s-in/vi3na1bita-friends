@@ -197,6 +197,12 @@ export const openVoiceCallUi = ({
             setState('Ошибка WebRTC-сигнала', 'Получен некорректный сигнал. Пробуем продолжить.');
           }
         }
+        await core.ackVoiceSignals({
+          roomId,
+          roomSecret,
+          peerId: myPeerId,
+          seqs: items.map(x => x.seq).filter(Boolean)
+        }).catch(() => null);
       } catch {
         signalFails++;
         if (signalFails === 2) setState('Сигналинг нестабилен', 'Пробуем восстановить обмен данными...');
