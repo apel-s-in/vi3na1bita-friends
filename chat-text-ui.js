@@ -376,11 +376,28 @@ export const openTextChatModal = ({
       seen.add(realMsg.msgId);
       updateMessage(realMsg);
     } catch (err) {
+      const raw = String(err?.message || 'send_failed');
+      const friendly =
+        raw.includes('crypto_peer_not_ready')
+          ? 'Собеседник ещё не открыл обновлённый раздел «Друзья» и не зарегистрировал ключ шифрования'
+          : raw.includes('crypto_local_key_missing')
+            ? 'Локальный ключ шифрования потерян. Откройте настройки криптоустройств'
+            : raw.includes('crypto_envelope')
+              ? 'Не удалось подготовить ключи для всех устройств'
+              : raw.includes('chat_revision_conflict')
+                ? 'Сообщение изменилось на другом устройстве. Повторите действие'
+                : raw;
+
       localMsg.localStatus = 'failed';
-      localMsg.error = err.message || 'send_failed';
+      localMsg.error = friendly;
       messagesById.set(localId, localMsg);
-      if (localMsg.clientMsgId) messagesById.set(localMsg.clientMsgId, localMsg);
+
+      if (localMsg.clientMsgId) {
+        messagesById.set(localMsg.clientMsgId, localMsg);
+      }
+
       updateMessage(localMsg);
+      toast?.(`Не отправлено: ${friendly}`);
     }
   };
 
