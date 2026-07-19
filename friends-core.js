@@ -18,9 +18,6 @@ const sha256Hex = async text => {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-export const makeFriendId = async yandexId =>
-  yandexId ? `ya_${(await sha256Hex(`friend:${safe(yandexId)}`)).slice(0, 24)}` : '';
-
 export const makeChatRoomId = async (a, b) => {
   const pair = [safe(a), safe(b)].sort().join('|');
   return `c_${(await sha256Hex(`chat:${pair}`)).slice(0, 20)}`;
@@ -48,17 +45,6 @@ export class FriendsCore {
     return this.identity;
   }
 
-  // Удобный хелпер: построить identity из сырого yandex-профиля (без токена).
-  async setIdentityFromYandex({ yandexId, displayName, avatar } = {}) {
-    const friendId = await makeFriendId(yandexId);
-    return this.setIdentity({
-      friendId,
-      displayName,
-      avatar,
-      yandexLinked: !!yandexId
-    });
-  }
-
   isReady() {
     return !!(
       this.identity?.friendId &&
@@ -84,8 +70,6 @@ export class FriendsCore {
         mode: 'cors',
         body: JSON.stringify({
           action,
-          playerId: this.identity.friendId,
-          clientSecret: this.identity.friendId,
           displayName: this.identity.displayName,
           avatarUrl: this.identity.avatar,
           ...data
