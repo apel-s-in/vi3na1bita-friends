@@ -53,7 +53,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 22:44:22 UTC
+Сгенерировано: 2026-07-19 22:49:26 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -506,13 +506,13 @@ try {
     body{position:fixed;inset:0}
     .vf-app{position:fixed !important;inset:0 !important;max-width:420px;margin:0 auto}
   </style>
-  <link rel="stylesheet" href="./styles.css?v=8.8.6">
+  <link rel="stylesheet" href="./styles.css?v=8.8.7">
 </head>
 <body>
   <main class="vf-app" id="app"></main>
   <script type="module">
-    import { FriendsCore } from './friends-core.js?v=8.8.6';
-    import { mountFriendsUI } from './friends-ui.js?v=8.8.6';
+    import { FriendsCore } from './friends-core.js?v=8.8.7';
+    import { mountFriendsUI } from './friends-ui.js?v=8.8.7';
 
     const core = new FriendsCore();
     const root = document.getElementById('app');
@@ -1564,7 +1564,7 @@ export default { openCryptoDevicesUi };
 // /Friends/friends-core.js
 // Data + identity + network для модуля Друзья. Без DOM.
 
-import { FriendsCrypto } from './friends-crypto.js?v=8.8.6';
+import { FriendsCrypto } from './friends-crypto.js?v=8.8.7';
 
 const SIGNALING_URL = 'https://functions.yandexcloud.net/d4e2epg33mkshjoar6av';
 export const CHAT_E2EE_V2 = true;
@@ -2786,9 +2786,9 @@ export default FriendsCrypto;
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
 
-import { getPlayableGames } from './games-registry.js?v=8.8.6';
-import { openTextChatModal } from './chat-text-ui.js?v=8.8.6';
-import { openVoiceCallUi } from './voice-call-ui.js?v=8.8.6';
+import { getPlayableGames } from './games-registry.js?v=8.8.7';
+import { openTextChatModal } from './chat-text-ui.js?v=8.8.7';
+import { openVoiceCallUi } from './voice-call-ui.js?v=8.8.7';
 
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
