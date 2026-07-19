@@ -297,6 +297,17 @@ export class FriendsCore {
     return Array.isArray(res.items) ? res.items : [];
   }
 
+  async ackPushes(pushIds = []) {
+    const ids = [...new Set(
+      (Array.isArray(pushIds) ? pushIds : [pushIds])
+        .map(safe)
+        .filter(Boolean)
+    )].slice(0, 100);
+
+    if (!ids.length) return { ok: true, acked: 0 };
+    return this._req('push_ack', { pushIds: ids });
+  }
+  
   async getProfile(targetId) {
     const res = await this._req('profile_get', { targetId: safe(targetId) });
     return res.profile || null;
