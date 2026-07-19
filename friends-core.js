@@ -361,15 +361,24 @@ export class FriendsCore {
       code: safe(code).replace(/\D/g, '').slice(0, 6)
     });
   }
-}
+
   async ackVoiceSignals({ roomId, roomSecret, peerId, seqs = [] } = {}) {
     return this._req('signal_ack', {
       roomId: safe(roomId),
       roomSecret: safe(roomSecret),
       peerId: safe(peerId),
-      seqs: [...new Set(seqs.map(safe).filter(Boolean))].slice(0, 200)
+      seqs: [...new Set(
+        (Array.isArray(seqs) ? seqs : [])
+          .map(safe)
+          .filter(Boolean)
+      )].slice(0, 200)
     });
   }
-const shortCode = inviteId => safe(inviteId).replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase();
+}
+
+const shortCode = inviteId => safe(inviteId)
+  .replace(/[^a-z0-9]/gi, '')
+  .slice(-6)
+  .toUpperCase();
 
 export default FriendsCore;
