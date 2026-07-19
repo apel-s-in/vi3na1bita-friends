@@ -233,8 +233,11 @@ export class FriendsCore {
     });
   }
 
-  async getRoom(roomId) {
-    return this._req('room_get', { roomId: safe(roomId) });
+  async getRoom(roomId, roomSecret = '') {
+    return this._req('room_get', {
+      roomId: safe(roomId),
+      roomSecret: safe(roomSecret)
+    });
   }
 
   async sendVoiceSignal({ roomId, roomSecret, fromPeerId, toPeerId, type, data } = {}) {
