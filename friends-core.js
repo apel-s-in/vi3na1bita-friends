@@ -1,7 +1,10 @@
 // /Friends/friends-core.js
 // Data + identity + network для модуля Друзья. Без DOM.
 
+import { FriendsCrypto } from './friends-crypto.js?v=8.8.5';
+
 const SIGNALING_URL = 'https://functions.yandexcloud.net/d4e2epg33mkshjoar6av';
+export const CHAT_E2EE_V2 = true;
 
 const safe = v => String(v == null ? '' : v).trim();
 const jsonParse = raw => { try { return JSON.parse(raw); } catch { return null; } };
@@ -29,6 +32,36 @@ export class FriendsCore {
     this.identity = null;
     this._cache = { friends: [], at: 0 };
     this.onError = () => {};
+    this.chatE2eeV2 = CHAT_E2EE_V2;
+    this.crypto = new FriendsCrypto({
+      request: (action, data) => this._req(action, data)
+    });
+`` null }) {
+    if (Number(message?.cryptoVersion || 0) !== 2) {
+      return this._req('chat_delete', {
+        friendId: safe(friendId),
+        msgId: safe(msgId)
+      });
+    }
+
+    const deletedAt = Date.now();
+    const cryptoPack = await this.crypto.encryptPayload({
+      friendId,
+      kind: 'tombstone',
+      subjectMsgId: msgId,
+      payload: {
+        type: 'tombstone',
+        deletedAt
+      }
+    });
+
+    return this._req('chat_delete_v2', {
+      friendId: safe(friendId),
+      msgId: safe(msgId),
+      deletedAt,
+      crypto: cryptoPack
+    });
+  }
   }
 
   // identity сверху: { friendId, displayName, avatar, yandexLinked, deviceStableId }
