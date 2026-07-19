@@ -167,6 +167,26 @@ export class FriendsCore {
     return this._req('chat_clear', { friendId: safe(friendId) });
   }
 
+  async getChatSettings(friendId) {
+    const res = await this._req('chat_settings_get', {
+      friendId: safe(friendId)
+    });
+    return res.settings || { retentionDays: 30, clearedBefore: 0 };
+  }
+
+  async setChatRetention(friendId, retentionDays) {
+    return this._req('chat_settings_set', {
+      friendId: safe(friendId),
+      retentionDays: Number(retentionDays)
+    });
+  }
+
+  async purgeChatForBoth(friendId) {
+    return this._req('chat_purge_both', {
+      friendId: safe(friendId)
+    });
+  }
+  
   async markChatDelivered({ friendId, msgId = '' } = {}) {
     return this._req('chat_delivery', {
       friendId: safe(friendId),
