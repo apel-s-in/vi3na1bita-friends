@@ -15,10 +15,12 @@
 - Деплой: корень репозитория в bucket prefix /Friends/.
 - Публичный путь: https://vi3na1bita.website.yandexcloud.net/Friends/
 - Два слоя: friends-core.js (data, без DOM) и friends-ui.js (рендер).
-- friendId = "ya_" + sha256(yandexId).slice(0,24). Один Яндекс-аккаунт = один друг.
-- Модуль НЕ читает OAuth token, localStorage parent, IndexedDB, parent.window.
-- Identity всегда приходит сверху (через snapshot/postMessage или прямой setIdentity).
-- Presence и чат запрашиваются ТОЛЬКО по действию пользователя. Без фоновых поллингов.
-- Любой polling останавливается при document.hidden.
+- friendId назначается только Cloud Function vi3-signaling после серверной проверки Яндекс OAuth. Клиент не вычисляет и не выбирает friendId.
+- Основное приложение получает короткоживущую подписанную social session и передаёт внешнему FriendsCore только friendId, профиль устройства и socialSession. OAuth token во внешний модуль не передаётся.
+- FriendsCore не читает OAuth token, localStorage/IndexedDB основного приложения и parent.window.
+- Identity всегда приходит сверху через setIdentity() или postMessage. Без действующей socialSession сетевые действия запрещены.
+- Presence heartbeat и push polling разрешены только пока открыт раздел Friends и страница видима. Polling чата и звонка разрешён только пока открыто соответствующее окно.
+- Любой polling обязан останавливаться при document.hidden, закрытии окна или уходе из раздела Friends.
+- ALLOW_LEGACY_AUTH=0 является целевым production-режимом. clientSecret, X-Vi3-Player и X-Vi3-Secret запрещены.
 - Список приглашаемых игр — единый, в games-registry.js.
 - Standalone-preview обязателен: без parent должен работать UI-каркас.
