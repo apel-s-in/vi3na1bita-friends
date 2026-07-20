@@ -106,10 +106,7 @@ export class FriendsCore {
     });
     await this.syncProfile();
 
-    if (this.chatE2eeV2) {
-      await this.crypto.ensureDevice();
-    }
-
+    await this.crypto.ensureDevice();
     return true;
   }
 
@@ -153,10 +150,6 @@ export class FriendsCore {
     replyText = '',
     clientMsgId = ''
   }) {
-    if (!this.chatE2eeV2) {
-      throw new Error('chat_e2ee_required');
-    }
-
     const cryptoPack = await this.crypto.encryptPayload({
       friendId: toFriendId,
       clientMsgId,
