@@ -18,7 +18,89 @@ const fmtChatTime = ts => {
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${yy}.${mm}.${dd} ${hh}:${mi}`;
 };
+const renderFeatureCards = () => `
+  <div class="friends-feature-grid">
+    <div class="friends-feature-card">
+      <span>💬</span>
+      <div>
+        <b>Личные сообщения</b>
+        <small>Защищённые чаты, ответы, реакции и отметки доставки.</small>
+      </div>
+    </div>
+    <div class="friends-feature-card">
+      <span>📞</span>
+      <div>
+        <b>Голосовые звонки</b>
+        <small>Прямое WebRTC-соединение там, где сеть разрешает маршрут без TURN.</small>
+      </div>
+    </div>
+    <div class="friends-feature-card">
+      <span>🔔</span>
+      <div>
+        <b>Push-уведомления</b>
+        <small>Сообщения, звонки и приглашения не потеряются.</small>
+      </div>
+    </div>
+    <div class="friends-feature-card">
+      <span>🎮</span>
+      <div>
+        <b>Игровые приглашения</b>
+        <small>Приглашайте друзей в «Войну Сердец».</small>
+      </div>
+    </div>
+    <div class="friends-feature-card">
+      <span>🔗</span>
+      <div>
+        <b>Добавление по ссылке</b>
+        <small>Отправьте защищённое приглашение через мессенджер или почту.</small>
+      </div>
+    </div>
+    <div class="friends-feature-card">
+      <span>📍</span>
+      <div>
+        <b>Друг рядом</b>
+        <small>Добавляйте знакомых коротким временным кодом.</small>
+      </div>
+    </div>
+  </div>
+`;
 
+const renderFriendsGuide = webPushEnabled => `
+  <section class="friends-authorized-guide">
+    <div class="friends-guide-head">
+      <div>
+        <span>👋 Вы в разделе друзей</span>
+        <small>Добавьте знакомого и начните общение.</small>
+      </div>
+      <span class="friends-guide-status">онлайн</span>
+    </div>
+
+    <div class="friends-guide-actions">
+      <button type="button" data-act="add">
+        ＋ Добавить друга
+      </button>
+      <button
+        type="button"
+        data-act="notify"
+        class="${webPushEnabled ? 'is-enabled' : ''}"
+      >
+        ${webPushEnabled ? '🔔 Уведомления' : '🔕 Уведомления'}
+      </button>
+      <button type="button" data-act="refresh">
+        ↻ Обновить
+      </button>
+    </div>
+
+    <details class="friends-guide-details">
+      <summary>✨ Что здесь можно делать</summary>
+      ${renderFeatureCards()}
+    </details>
+
+    <div class="friends-guide-tip">
+      💡 Нажмите на друга, чтобы открыть чат, позвонить или пригласить его в игру.
+    </div>
+  </section>
+`;
 export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
   if (!root) return null;
 
@@ -36,15 +118,14 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     toast.timer = setTimeout(() => t.classList.remove('is-show'), 1600);
   };
 
-  const renderList = (friends = [], presence = {}) => `
-    <div class="vf-head">
-      <h2>Друзья</h2>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="vf-btn vf-btn-add ${typeof getWebPushEnabled === 'function' && getWebPushEnabled() ? 'vf-notify-on' : 'vf-notify-off'}" type="button" data-act="notify" title="${typeof getWebPushEnabled === 'function' && getWebPushEnabled() ? 'Системные уведомления включены' : 'Системные уведомления выключены'}">${typeof getWebPushEnabled === 'function' && getWebPushEnabled() ? '🔔 Увед.' : '🔕 Увед.'}</button>
-        <button class="vf-btn vf-btn-add" type="button" data-act="add">＋ Добавить</button>
-      </div>
-    </div>
-    <div class="vf-list">
+  const renderList = (friends = [], presence = {}) => {
+    const webPushEnabled =
+      typeof getWebPushEnabled === 'function' &&
+      getWebPushEnabled();
+
+    return `
+      ${renderFriendsGuide(webPushEnabled)}
+      <div class="vf-list">
       ${friends.length ? friends.map(f => {
         const fid = f.friendId;
         const name = f.profile?.displayName || 'Друг';
@@ -69,8 +150,9 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           <small>Добавь друга по защищённой ссылке или временному коду.</small>
         </div>
       `}
-    </div>
-  `;
+      </div>
+    `;
+  };
 
   const refresh = async ({ force = false } = {}) => {
     if (!core.isReady()) {
@@ -89,7 +171,23 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
   };
 
   const bindList = () => {
-    el.querySelector('[data-act="add"]')?.addEventListener('click', openAddModal);
+    el.querySelector('[data-act="add"]')
+      ?.addEventListener('click', openAddModal);
+
+    el.querySelector('[data-act="refresh"]')
+      ?.addEventListener('click', async event => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = '↻ Обновляем...';
+
+        try {
+          await refresh({ force: true });
+          toast('Список друзей обновлён');
+        } catch {
+          toast('Не удалось обновить список');
+        }
+      });
+
     el.querySelector('[data-act="notify"]')?.addEventListener('click', async () => {
       if (typeof onEnableWebPush !== 'function') {
         toast('Системные уведомления доступны в основном приложении');
