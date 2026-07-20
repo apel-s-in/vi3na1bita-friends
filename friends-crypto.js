@@ -370,7 +370,7 @@ export class FriendsCrypto {
 
   async decryptMessage(message = {}) {
     if (Number(message.cryptoVersion || message.crypto?.version) !== 2) {
-      return message;
+      throw new Error('chat_crypto_version_unsupported');
     }
 
     const device = await this.ensureDevice();
@@ -441,10 +441,6 @@ export class FriendsCrypto {
 
   async decryptMessages(items = []) {
     return Promise.all((Array.isArray(items) ? items : []).map(async item => {
-      if (Number(item?.cryptoVersion || item?.crypto?.version) !== 2) {
-        return item;
-      }
-
       try {
         return await this.decryptMessage(item);
       } catch {
