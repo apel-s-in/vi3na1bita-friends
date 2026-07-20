@@ -54,7 +54,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-20 18:25:56 UTC
+Сгенерировано: 2026-07-20 18:26:30 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -764,8 +764,25 @@ jobs:
           node --input-type=module --check < crypto-devices-ui.js
           node --input-type=module --check < friends-ui.js
           node --input-type=module --check < chat-text-ui.js
-          node --input-type=module --check < voice-call-ui.js
-          node --input-type=module --check < games-registry.js
+
+      - name: Validate E2EE-only contract
+        run: |
+          if grep -En "['\"]chat_(send|delete|react)['\"]" friends-core.js; then
+            echo "Legacy plaintext chat action found"
+            exit 2
+          fi
+
+          if grep -En "clientSecret|X-Vi3-Player|X-Vi3-Secret" \
+            friends-core.js friends-crypto.js chat-text-ui.js; then
+            echo "Legacy authentication found"
+            exit 2
+          fi
+
+          if grep -RFn "api.qrserver.com" \
+            friends-ui.js crypto-devices-ui.js; then
+            echo "External QR transport found"
+            exit 2
+          fi
 
 //=================================================
 // FILE: /chat-text-ui.js
