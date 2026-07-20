@@ -108,12 +108,7 @@ export const openCryptoDevicesUi = async ({
         ${safety ? `
           <p>Сравните этот код голосом или при личной встрече. Он должен полностью совпасть у обоих.</p>
           <code class="vf-safety-number">${esc(safety.display)}</code>
-          <div class="vf-qr">
-            <img
-              alt="QR safety number"
-              src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(safety.uri)}"
-            >
-          </div>
+          <p>Для проверки передайте код собеседнику напрямую. Private key и сообщения никуда не отправляются.</p>
           <div class="vf-actions">
             <button class="vf-btn vf-sec" type="button" data-copy-safety>Копировать код</button>
             <button class="vf-btn" type="button" data-verify-safety>
