@@ -347,8 +347,8 @@ export const openTextChatModal = ({
       deliveredAt: 0,
       readAt: 0,
       localStatus: 'sending',
-      cryptoVersion: core.chatE2eeV2 ? 2 : 1,
-      encrypted: !!core.chatE2eeV2
+      cryptoVersion: 2,
+      encrypted: true
     };
 
     append(localMsg);
@@ -370,8 +370,8 @@ export const openTextChatModal = ({
         msgId: res.msgId || localId,
         createdAt,
         deliveredAt: res?.webPush?.sent > 0 ? createdAt : 0,
-        cryptoVersion: Number(res.cryptoVersion || localMsg.cryptoVersion || 1),
-        encrypted: Number(res.cryptoVersion || localMsg.cryptoVersion || 1) === 2,
+        cryptoVersion: 2,
+        encrypted: true,
         localStatus: ''
       };
       seen.add(realMsg.msgId);
