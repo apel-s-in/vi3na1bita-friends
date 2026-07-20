@@ -54,7 +54,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-19 23:17:29 UTC
+Сгенерировано: 2026-07-20 18:21:03 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1700,10 +1700,7 @@ export class FriendsCore {
     });
     await this.syncProfile();
 
-    if (this.chatE2eeV2) {
-      await this.crypto.ensureDevice();
-    }
-
+    await this.crypto.ensureDevice();
     return true;
   }
 
@@ -1747,10 +1744,6 @@ export class FriendsCore {
     replyText = '',
     clientMsgId = ''
   }) {
-    if (!this.chatE2eeV2) {
-      throw new Error('chat_e2ee_required');
-    }
-
     const cryptoPack = await this.crypto.encryptPayload({
       friendId: toFriendId,
       clientMsgId,
