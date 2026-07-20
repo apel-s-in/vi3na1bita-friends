@@ -66,7 +66,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         <div class="vf-empty">
           <span>👥</span>
           <b>Друзей пока нет</b>
-          <small>Добавь друга по ссылке, коду или QR.</small>
+          <small>Добавь друга по защищённой ссылке или временному коду.</small>
         </div>
       `}
     </div>
