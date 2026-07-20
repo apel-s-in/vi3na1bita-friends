@@ -283,7 +283,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           <button class="vf-btn" data-x="copy">Скопировать ссылку</button>
           <button class="vf-btn vf-sec" data-x="share">Поделиться</button>
           <button class="vf-btn vf-sec" data-x="mail">Почта</button>
-          <button class="vf-btn vf-sec" data-x="qr">QR-код</button>
           <button class="vf-btn vf-sec" data-x="nearby">Друг рядом</button>
         </div>
         <div class="vf-qr" hidden></div>
@@ -303,11 +302,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       });
       ov.querySelector('[data-x="mail"]')?.addEventListener('click', () => {
         location.href = `mailto:?subject=${encodeURIComponent('Добавь меня в друзья')}&body=${encodeURIComponent(url)}`;
-      });
-      ov.querySelector('[data-x="qr"]')?.addEventListener('click', () => {
-        const box = ov.querySelector('.vf-qr');
-        box.hidden = false;
-        box.innerHTML = `<img alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}">`;
       });
 
       ov.querySelector('[data-x="nearby"]')?.addEventListener('click', async () => {
