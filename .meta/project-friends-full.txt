@@ -54,7 +54,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-20 21:41:11 UTC
+Сгенерировано: 2026-07-20 21:43:01 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -507,13 +507,13 @@ try {
     body{position:fixed;inset:0}
     .vf-app{position:fixed !important;inset:0 !important;max-width:420px;margin:0 auto}
   </style>
-  <link rel="stylesheet" href="./styles.css?v=8.9.1">
+  <link rel="stylesheet" href="./styles.css?v=8.9.2">
 </head>
 <body>
   <main class="vf-app" id="app"></main>
   <script type="module">
-    import { FriendsCore } from './friends-core.js?v=8.9.1';
-    import { mountFriendsUI } from './friends-ui.js?v=8.9.1';
+    import { FriendsCore } from './friends-core.js?v=8.9.2';
+    import { mountFriendsUI } from './friends-ui.js?v=8.9.2';
 
     const core = new FriendsCore();
     const root = document.getElementById('app');
@@ -788,7 +788,7 @@ jobs:
 // FILE: /chat-text-ui.js
 // /Friends/chat-text-ui.js
 // Текстовый чат: UI, optimistic-send, reply/quote, reactions, retry, adaptive polling.
-import { openCryptoDevicesUi } from './crypto-devices-ui.js?v=8.9.1';
+import { openCryptoDevicesUi } from './crypto-devices-ui.js?v=8.9.2';
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
@@ -1607,7 +1607,7 @@ export default { openCryptoDevicesUi };
 // /Friends/friends-core.js
 // Data + identity + network для модуля Друзья. Без DOM.
 
-import { FriendsCrypto } from './friends-crypto.js?v=8.9.1';
+import { FriendsCrypto } from './friends-crypto.js?v=8.9.2';
 
 const SIGNALING_URL = 'https://functions.yandexcloud.net/d4e2epg33mkshjoar6av';
 export const CHAT_E2EE_V2 = true;
@@ -2778,9 +2778,9 @@ export default FriendsCrypto;
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
 
-import { getPlayableGames } from './games-registry.js?v=8.9.1';
-import { openTextChatModal } from './chat-text-ui.js?v=8.9.1';
-import { openVoiceCallUi } from './voice-call-ui.js?v=8.9.1';
+import { getPlayableGames } from './games-registry.js?v=8.9.2';
+import { openTextChatModal } from './chat-text-ui.js?v=8.9.2';
+import { openVoiceCallUi } from './voice-call-ui.js?v=8.9.2';
 
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
