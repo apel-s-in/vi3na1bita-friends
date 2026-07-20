@@ -44,6 +44,7 @@ export const openVoiceCallUi = ({
   let pollBusy = false;
   let roomBusy = false;
   let cleanupObserver = null;
+  const pendingIce = [];
 
   const ov = openModal(`
     <div class="vf-modal-head vf-chat-head">
@@ -156,6 +157,17 @@ export const openVoiceCallUi = ({
     return pc;
   };
 
+  const flushPendingIce = async () => {
+    if (!pc?.remoteDescription) return;
+
+    while (pendingIce.length) {
+      const candidate = pendingIce.shift();
+      await pc
+        .addIceCandidate(new RTCIceCandidate(candidate))
+        .catch(() => null);
+    }
+  };
+
   const pollSignals = () => {
     clearInterval(pollTimer);
     pollTimer = setInterval(async () => {
@@ -173,7 +185,11 @@ export const openVoiceCallUi = ({
 
             if (msg.type === 'offer') {
               setState('Получено предложение соединения', 'Готовим ответ собеседнику.');
-              await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+              await pc.setRemoteDescription(
+                new RTCSessionDescription(msg.data)
+              );
+              await flushPendingIce();
+
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
               await sendSignal('answer', pc.localDescription);
@@ -181,11 +197,20 @@ export const openVoiceCallUi = ({
 
             if (msg.type === 'answer') {
               setState('Собеседник ответил', 'Завершаем установку WebRTC.');
-              await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+              await pc.setRemoteDescription(
+                new RTCSessionDescription(msg.data)
+              );
+              await flushPendingIce();
             }
 
-            if (msg.type === 'candidate' && pc?.remoteDescription) {
-              await pc.addIceCandidate(new RTCIceCandidate(msg.data)).catch(() => null);
+            if (msg.type === 'candidate') {
+              if (!pc?.remoteDescription) {
+                pendingIce.push(msg.data);
+              } else {
+                await pc
+                  .addIceCandidate(new RTCIceCandidate(msg.data))
+                  .catch(() => null);
+              }
             }
 
             if (msg.type === 'bye') {
