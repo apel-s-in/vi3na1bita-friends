@@ -47,8 +47,8 @@ jobs:
             local cc="public, max-age=300"
             case "$f" in
               *.html) ct="text/html; charset=utf-8"; cc="no-cache, no-store, must-revalidate" ;;
-              *.css) ct="text/css; charset=utf-8" ;;
-              *.js|*.mjs) ct="application/javascript; charset=utf-8"; cc="public, max-age=120" ;;
+              *.css) ct="text/css; charset=utf-8"; cc="public, max-age=31536000, immutable" ;;
+              *.js|*.mjs) ct="application/javascript; charset=utf-8"; cc="public, max-age=31536000, immutable" ;;
               *.json) ct="application/json; charset=utf-8" ;;
               *.svg) ct="image/svg+xml" ;;
               *.webp|*.png|*.jpg) ct="image/${f##*.}"; cc="public, max-age=86400" ;;
