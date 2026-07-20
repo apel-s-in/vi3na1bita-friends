@@ -508,7 +508,10 @@ export class FriendsCore {
   }
 
   async getPushes() {
-    const res = await this._req('push_poll', {});
+    const device = await this.crypto.ensureDevice();
+    const res = await this._req('push_poll', {
+      deviceId: device.deviceId
+    });
     return Array.isArray(res.items) ? res.items : [];
   }
 
@@ -520,7 +523,13 @@ export class FriendsCore {
     )].slice(0, 100);
 
     if (!ids.length) return { ok: true, acked: 0 };
-    return this._req('push_ack', { pushIds: ids });
+
+    const device = await this.crypto.ensureDevice();
+
+    return this._req('push_ack', {
+      deviceId: device.deviceId,
+      pushIds: ids
+    });
   }
   
   async getProfile(targetId) {
