@@ -54,7 +54,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-20 18:21:50 UTC
+Сгенерировано: 2026-07-20 18:22:41 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -2546,7 +2546,7 @@ export class FriendsCrypto {
 
   async decryptMessage(message = {}) {
     if (Number(message.cryptoVersion || message.crypto?.version) !== 2) {
-      return message;
+      throw new Error('chat_crypto_version_unsupported');
     }
 
     const device = await this.ensureDevice();
@@ -2617,10 +2617,6 @@ export class FriendsCrypto {
 
   async decryptMessages(items = []) {
     return Promise.all((Array.isArray(items) ? items : []).map(async item => {
-      if (Number(item?.cryptoVersion || item?.crypto?.version) !== 2) {
-        return item;
-      }
-
       try {
         return await this.decryptMessage(item);
       } catch {
