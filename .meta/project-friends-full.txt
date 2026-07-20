@@ -55,7 +55,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-20 22:53:08 UTC
+Сгенерировано: 2026-07-20 23:17:14 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -789,6 +789,9 @@ jobs:
           node --input-type=module --check < crypto-devices-ui.js
           node --input-type=module --check < friends-ui.js
           node --input-type=module --check < chat-text-ui.js
+          node --input-type=module --check < voice-call-ui.js
+          node --input-type=module --check < games-registry.js
+          node --input-type=module --check < embedded-rpc-contract.js
 
       - name: Validate E2EE-only contract
         run: |
@@ -806,6 +809,19 @@ jobs:
           if grep -RFn "api.qrserver.com" \
             friends-ui.js crypto-devices-ui.js; then
             echo "External QR transport found"
+            exit 2
+          fi
+
+      - name: Validate embedded RPC security
+        run: |
+          grep -q "purgeChatForBoth" embedded-rpc-contract.js
+          grep -q "revokeCryptoDevice" embedded-rpc-contract.js
+          grep -q "resetCryptoDevices" embedded-rpc-contract.js
+          grep -q "dangerous: true" embedded-rpc-contract.js
+
+          if grep -REn "play|pause|stop|setVolume|setMuted|seek|next|prev" \
+            embedded-rpc-contract.js; then
+            echo "Playback method found in Friends RPC contract"
             exit 2
           fi
 
