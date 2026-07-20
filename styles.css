@@ -131,3 +131,27 @@
 .vf-crypto-device .vf-btn{min-height:34px;padding:0 9px;font-size:10px}
 .vf-crypto-warning{padding:10px;border-radius:12px;background:rgba(255,183,77,.09);border:1px solid rgba(255,183,77,.28);color:#ffe0a8;font-size:11px;line-height:1.4}
 .vf-safety-number{display:block;padding:10px;border-radius:10px;background:#050817;color:#adffdf;font-size:12px;font-weight:900;line-height:1.55;letter-spacing:.04em;overflow-wrap:anywhere;text-align:center}
+.friends-authorized-guide{width:100%;padding:0 0 10px;color:#eaf2ff;box-sizing:border-box}
+.friends-guide-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border-radius:14px;background:linear-gradient(135deg,rgba(124,77,255,.13),rgba(77,170,255,.08));border:1px solid rgba(182,168,255,.2)}
+.friends-guide-head>div{display:flex;flex-direction:column;min-width:0}
+.friends-guide-head>div>span{font-size:13px;font-weight:950;color:#fff}
+.friends-guide-head small{margin-top:3px;color:#9db7dd;font-size:10.5px;line-height:1.3}
+.friends-guide-status{flex-shrink:0;padding:4px 8px;border-radius:999px;background:rgba(70,230,165,.12);border:1px solid rgba(70,230,165,.28);color:#adffdf;font-size:9px;font-weight:950;text-transform:uppercase}
+.friends-guide-actions{display:grid;grid-template-columns:1.25fr 1.25fr .8fr;gap:6px;margin-top:8px}
+.friends-guide-actions button{min-height:38px;padding:6px;border-radius:11px;border:1px solid rgba(132,145,255,.22);background:rgba(255,255,255,.05);color:#eaf2ff;font-size:10.5px;font-weight:950;cursor:pointer}
+.friends-guide-actions button:first-child{background:linear-gradient(135deg,rgba(255,49,89,.9),rgba(124,77,255,.9));border-color:transparent}
+.friends-guide-actions button.is-enabled{border-color:rgba(70,230,165,.3);color:#adffdf}
+.friends-guide-actions button:disabled{opacity:.55;cursor:wait}
+.friends-guide-details{margin-top:8px;border-radius:13px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.06);overflow:hidden}
+.friends-guide-details summary{padding:10px 12px;cursor:pointer;color:#b6a8ff;font-size:11px;font-weight:950;list-style:none}
+.friends-guide-details summary::-webkit-details-marker{display:none}
+.friends-guide-details summary::after{content:"▼";float:right;font-size:9px;color:#7287aa}
+.friends-guide-details[open] summary::after{transform:rotate(180deg)}
+.friends-feature-grid{display:grid;grid-template-columns:1fr;gap:7px;width:100%;padding:0 8px 8px}
+.friends-feature-card{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:13px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);text-align:left}
+.friends-feature-card>span{width:28px;flex:0 0 28px;font-size:21px;text-align:center}
+.friends-feature-card>div{min-width:0}
+.friends-feature-card b{display:block;color:#fff;font-size:12px;line-height:1.2}
+.friends-feature-card small{display:block;margin-top:3px;color:#8ea8cc;font-size:10.5px;line-height:1.35}
+.friends-guide-tip{margin-top:8px;padding:9px 10px;border-radius:11px;background:rgba(36,232,255,.055);border:1px solid rgba(36,232,255,.13);color:#9db7dd;font-size:10.5px;line-height:1.4}
+@media(max-width:350px){.friends-guide-actions{grid-template-columns:1fr 1fr}.friends-guide-actions button[data-act="refresh"]{grid-column:1/-1}}
