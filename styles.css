@@ -155,3 +155,4 @@
 .friends-feature-card small{display:block;margin-top:3px;color:#8ea8cc;font-size:10.5px;line-height:1.35}
 .friends-guide-tip{margin-top:8px;padding:9px 10px;border-radius:11px;background:rgba(36,232,255,.055);border:1px solid rgba(36,232,255,.13);color:#9db7dd;font-size:10.5px;line-height:1.4}
 @media(max-width:350px){.friends-guide-actions{grid-template-columns:1fr 1fr}.friends-guide-actions button[data-act="refresh"]{grid-column:1/-1}}
+.vf-confirm-text{margin:0 0 14px;padding:10px 12px;border-radius:12px;background:rgba(36,232,255,.06);border:1px solid rgba(36,232,255,.16);color:var(--vf-muted);font-size:12px;line-height:1.45;text-align:left}
