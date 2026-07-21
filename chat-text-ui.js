@@ -24,6 +24,7 @@ export const openTextChatModal = ({
   core,
   openModal,
   toast,
+  confirmAction = async () => false,
   onActiveChatChange = () => {}
 } = {}) => {
   if (!friendId || !core || typeof openModal !== 'function') return false;
@@ -474,7 +475,15 @@ export const openTextChatModal = ({
     };
 
     menu.querySelector('[data-m="delete"]').onclick = async () => {
-      if (!confirm('Удалить сообщение у обоих собеседников?')) return;
+      const confirmed = await confirmAction({
+        title: 'Удалить сообщение?',
+        text: 'Сообщение будет удалено у обоих собеседников.',
+        confirmText: 'Удалить',
+        dangerous: true
+      });
+
+      if (!confirmed) return;
+
       try {
         const result = await core.deleteChatMessage({
           friendId,
@@ -539,11 +548,18 @@ export const openTextChatModal = ({
       friendId,
       name,
       openModal,
-      toast
+      toast,
+      confirmAction
     });
   };
   ov.querySelector('#vf-chat-clear').onclick = async () => {
-    if (!confirm('Скрыть всю историю этого диалога только у вас? У собеседника сообщения останутся.')) return;
+    const confirmed = await confirmAction({
+      title: 'Очистить чат только у вас?',
+      text: 'У собеседника сообщения останутся. Позже новые сообщения снова появятся в этом диалоге.',
+      confirmText: 'Очистить'
+    });
+
+    if (!confirmed) return;
 
     try {
       await core.clearChat(friendId);
@@ -561,8 +577,14 @@ export const openTextChatModal = ({
   };
 
   ov.querySelector('#vf-chat-purge-both').onclick = async () => {
-    if (!confirm('Безвозвратно удалить всю переписку у вас и у собеседника?')) return;
-    if (!confirm('Это действие нельзя отменить. Удалить переписку у обоих?')) return;
+    const confirmed = await confirmAction({
+      title: 'Удалить переписку у обоих?',
+      text: 'Вся переписка будет безвозвратно удалена у вас и у собеседника. Это действие нельзя отменить.',
+      confirmText: 'Удалить у обоих',
+      dangerous: true
+    });
+
+    if (!confirmed) return;
 
     try {
       await core.purgeChatForBoth(friendId);
