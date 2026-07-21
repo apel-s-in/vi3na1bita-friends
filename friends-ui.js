@@ -391,7 +391,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           <button class="vf-btn vf-sec" data-x="mail">Почта</button>
           <button class="vf-btn vf-sec" data-x="nearby">Друг рядом</button>
         </div>
-        <div class="vf-qr" hidden></div>
+        <div class="vf-nearby-box" hidden></div>
         <div style="text-align:left;background:rgba(0,0,0,0.2);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);margin-top:12px;">
           <div style="font-size:12px;color:var(--vf-muted);margin-bottom:8px;">Или вставь присланную тебе ссылку:</div>
           <div style="display:flex;gap:8px;">
@@ -411,7 +411,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       });
 
       ov.querySelector('[data-x="nearby"]')?.addEventListener('click', async () => {
-        const box = ov.querySelector('.vf-qr');
+        const box = ov.querySelector('.vf-nearby-box');
         box.hidden = false;
         box.innerHTML = `<p>Создаём код для друга рядом...</p>`;
         try {
