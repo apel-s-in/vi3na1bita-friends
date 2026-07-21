@@ -22,6 +22,7 @@ export const openVoiceCallUi = ({
   core,
   openModal,
   toast,
+  confirmAction = async () => false,
   onVoiceOpened = null
 } = {}) => {
   if (!friendId || !core || typeof openModal !== 'function') return false;
@@ -336,7 +337,16 @@ export const openVoiceCallUi = ({
   };
 
   const finish = async (status = 'ended', ask = true) => {
-    if (ask && !confirm('Завершить звонок?')) return;
+    if (ask) {
+      const confirmed = await confirmAction({
+        title: 'Завершить звонок?',
+        text: 'Голосовое соединение с собеседником будет закрыто.',
+        confirmText: 'Завершить'
+      });
+
+      if (!confirmed) return;
+    }
+
     await sendSignal('bye', { at: Date.now() });
     const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
     cleanupVoice();
