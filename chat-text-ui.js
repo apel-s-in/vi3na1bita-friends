@@ -259,8 +259,27 @@ export const openTextChatModal = ({
       if (status && row.contains(status)) {
         e.preventDefault();
         e.stopPropagation();
+
         const cur = getRowMessage(row);
-        if (cur) alert(statusDetails(cur));
+        if (!cur) return;
+
+        const info = openModal(`
+          <div class="vf-modal-head">
+            <b>Статус сообщения</b>
+          </div>
+          <div class="vf-confirm-text" style="white-space:pre-line">
+            ${esc(statusDetails(cur))}
+          </div>
+          <div class="vf-actions">
+            <button class="vf-btn vf-sec" type="button" data-status-close>
+              Закрыть
+            </button>
+          </div>
+        `);
+
+        info.querySelector('[data-status-close]')
+          ?.addEventListener('click', () => info.vfClose?.());
+
         return;
       }
 
