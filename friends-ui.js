@@ -10,15 +10,6 @@ const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
 
-const fmtChatTime = ts => {
-  const d = new Date(Number(ts || Date.now()));
-  const yy = String(d.getFullYear()).slice(-2);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
-};
 const renderFeatureCards = () => `
   <div class="friends-feature-grid">
     <div class="friends-feature-card">
@@ -102,7 +93,7 @@ const renderFriendsGuide = webPushEnabled => `
     </div>
   </section>
 `;
-export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getUnreadMeta = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
   if (!root) return null;
 
   const el = document.createElement('section');
