@@ -2,6 +2,7 @@
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
 
 import { getPlayableGames } from './games-registry.js?v=8.9.3';
+import { createFriendsModalAdapter } from './modal-adapter.js?v=8.9.4';
 import { openTextChatModal } from './chat-text-ui.js?v=8.9.3';
 import { openVoiceCallUi } from './voice-call-ui.js?v=8.9.3';
 
@@ -229,9 +230,19 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     };
 
     ov.vfClose = close;
-    if (closeOnBackdrop) ov.addEventListener('click', e => { if (e.target === ov) close(); });
+
+    if (closeOnBackdrop) {
+      ov.addEventListener('click', event => {
+        if (event.target === ov) close();
+      });
+    }
+
     return ov;
   };
+
+  const modal = createFriendsModalAdapter({
+    openModal
+  });
 
   const openFriendActions = (friendId, name) => {
     const games = getPlayableGames();
@@ -336,18 +347,24 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     core,
     openModal,
     toast,
+    confirmAction: modal.confirm,
     onActiveChatChange: api => {
       activeChatApi = api;
     }
   });
 
-  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => openVoiceCallUi({
+  const openVoiceCallModal = (
+    friendId,
+    name = 'Друг',
+    incoming = null
+  ) => openVoiceCallUi({
     friendId,
     name,
     incoming,
     core,
     openModal,
     toast,
+    confirmAction: modal.confirm,
     onVoiceOpened
   });
 
