@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-21 08:09:29 UTC
+Сгенерировано: 2026-07-21 08:11:02 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1503,7 +1503,8 @@ export const openCryptoDevicesUi = async ({
   friendId,
   name = 'Друг',
   openModal,
-  toast
+  toast,
+  confirmAction = async () => false
 } = {}) => {
   if (!core || !friendId || typeof openModal !== 'function') return false;
 
@@ -1613,7 +1614,14 @@ export const openCryptoDevicesUi = async ({
 
     root.querySelectorAll('[data-revoke]').forEach(button => {
       button.addEventListener('click', async () => {
-        if (!confirm('Отозвать это устройство шифрования?')) return;
+        const confirmed = await confirmAction({
+          title: 'Отозвать ключ устройства?',
+          text: 'Устройство потеряет доступ к новым сообщениям. Без подходящего ключа часть истории может стать недоступна.',
+          confirmText: 'Отозвать устройство',
+          dangerous: true
+        });
+
+        if (!confirmed) return;
 
         try {
           await core.revokeCryptoDevice(button.dataset.revoke);
@@ -1630,16 +1638,29 @@ export const openCryptoDevicesUi = async ({
       toast?.('Safety number скопирован');
     });
 
-    root.querySelector('[data-verify-safety]')?.addEventListener('click', () => {
-      if (!confirm('Вы лично сравнили полный код с собеседником, и он совпал?')) return;
+    root.querySelector('[data-verify-safety]')?.addEventListener('click', async () => {
+      const confirmed = await confirmAction({
+        title: 'Подтвердить safety number?',
+        text: 'Подтвердите только после личной сверки полного кода с собеседником.',
+        confirmText: 'Коды совпали'
+      });
+
+      if (!confirmed) return;
+
       core.setSafetyVerified(friendId, safety);
       toast?.('Ключи собеседника проверены');
       render();
     });
 
     root.querySelector('[data-reset-crypto]')?.addEventListener('click', async () => {
-      if (!confirm('Отозвать все ключи и создать новый local private key?')) return;
-      if (!confirm('Старые сообщения могут стать недоступны. Продолжить?')) return;
+      const confirmed = await confirmAction({
+        title: 'Полностью сбросить E2EE-ключи?',
+        text: 'Все текущие ключи будут отозваны. Старые сообщения без подходящего envelope могут стать недоступны навсегда.',
+        confirmText: 'Сбросить ключи',
+        dangerous: true
+      });
+
+      if (!confirmed) return;
 
       try {
         await core.resetCryptoDevices();
