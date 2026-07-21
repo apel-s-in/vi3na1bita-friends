@@ -26,6 +26,7 @@ jobs:
           node --input-type=module --check < voice-call-ui.js
           node --input-type=module --check < games-registry.js
           node --input-type=module --check < embedded-rpc-contract.js
+          node --input-type=module --check < modal-adapter.js
 
       - name: Validate E2EE-only contract
         run: |
@@ -56,5 +57,11 @@ jobs:
           if grep -REn "play|pause|stop|setVolume|setMuted|seek|next|prev" \
             embedded-rpc-contract.js; then
             echo "Playback method found in Friends RPC contract"
+            exit 2
+          fi
+
+          if grep -REn "\bconfirm\s*\(" \
+            friends-ui.js chat-text-ui.js crypto-devices-ui.js voice-call-ui.js; then
+            echo "Native confirm() found in Friends UI"
             exit 2
           fi
