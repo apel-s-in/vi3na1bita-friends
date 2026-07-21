@@ -300,10 +300,6 @@ export class FriendsCore {
     if (!result.message) return null;
     return this.crypto.decryptMessage(result.message);
   }
-  
-  async decryptChatMessage(message) {
-    return this.crypto.decryptMessage(message);
-  }
 
   async getOwnCryptoDevices() {
     const result = await this._req('crypto_device_self_list', {});
@@ -486,24 +482,17 @@ export class FriendsCore {
     return json.invite;
   }
 
-  async sendGameInvite({ toFriendId, gameId, roomId, roomSecret }) {
-    return this._req('push_send', {
-      toFriendId: safe(toFriendId),
-      kind: 'GAME_INVITE',
-      gameId: safe(gameId),
-      roomId: safe(roomId),
-      roomSecret: safe(roomSecret)
-    });
-  }
-
-  async sendPush({ toFriendId, kind = 'GENERIC', text = '', gameId = '', roomId = '', roomSecret = '' } = {}) {
+  async sendPush({
+    toFriendId,
+    kind = 'GENERIC',
+    text = '',
+    gameId = ''
+  } = {}) {
     return this._req('push_send', {
       toFriendId: safe(toFriendId),
       kind: safe(kind || 'GENERIC').slice(0, 40),
       text: safe(text).slice(0, 300),
-      gameId: safe(gameId),
-      roomId: safe(roomId),
-      roomSecret: safe(roomSecret)
+      gameId: safe(gameId)
     });
   }
 
