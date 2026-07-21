@@ -60,8 +60,8 @@ jobs:
             exit 2
           fi
 
-          if grep -REn "\bconfirm\s*\(" \
+          if grep -REn "\b(confirm|alert|prompt)\s*\(" \
             friends-ui.js chat-text-ui.js crypto-devices-ui.js voice-call-ui.js; then
-            echo "Native confirm() found in Friends UI"
+            echo "Native dialog found in Friends UI"
             exit 2
           fi
