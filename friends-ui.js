@@ -1,10 +1,10 @@
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
 
-import { getPlayableGames } from './games-registry.js?v=9.0.5';
-import { createFriendsModalAdapter } from './modal-adapter.js?v=9.0.5';
-import { openTextChatModal } from './chat-text-ui.js?v=9.0.5';
-import { openVoiceCallUi } from './voice-call-ui.js?v=9.0.5';
+import { getPlayableGames } from './games-registry.js?v=9.0.6';
+import { createFriendsModalAdapter } from './modal-adapter.js?v=9.0.6';
+import { openTextChatModal } from './chat-text-ui.js?v=9.0.6';
+import { openVoiceCallUi } from './voice-call-ui.js?v=9.0.6';
 
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
