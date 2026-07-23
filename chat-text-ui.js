@@ -1,6 +1,6 @@
 // /Friends/chat-text-ui.js
 // Текстовый чат: UI, optimistic-send, reply/quote, reactions, retry, adaptive polling.
-import { openCryptoDevicesUi } from './crypto-devices-ui.js?v=9.0.2';
+import { openCryptoDevicesUi } from './crypto-devices-ui.js?v=9.0.3';
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 })[c]);
