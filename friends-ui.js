@@ -1,10 +1,10 @@
 /* GENERATED_FROM=input.js SOURCE_SHA256=299c8335e213205530c3b98e0278c96159eb855aeab2ebe762a71f441c797962 FORMAT=READABLE_COMPACT PRINT_WIDTH=320 BLANK_LINES=SAFE_REMOVE DO_NOT_EDIT */
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
-import { getPlayableGames } from './games-registry.js?v=9.1.9';
-import { createFriendsModalAdapter } from './modal-adapter.js?v=9.1.9';
-import { openTextChatModal } from './chat-text-ui.js?v=9.1.9';
-import { openVoiceCallUi } from './voice-call-ui.js?v=9.1.9';
+import { getPlayableGames } from './games-registry.js?v=9.2.1';
+import { createFriendsModalAdapter } from './modal-adapter.js?v=9.2.1';
+import { openTextChatModal } from './chat-text-ui.js?v=9.2.1';
+import { openVoiceCallUi } from './voice-call-ui.js?v=9.2.1';
 const esc = v => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]);
 const renderFeatureCards = () => `
   <div class="friends-feature-grid">
