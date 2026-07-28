@@ -1,10 +1,6 @@
 // /Friends/voice-call-ui.js
 // Голосовой звонок (WebRTC) вынесен из friends-ui.js 1:1, без изменения логики.
-
-const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-})[c]);
-
+const esc = v => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]);
 const fmtChatTime = ts => {
   const d = new Date(Number(ts || Date.now()));
   const yy = String(d.getFullYear()).slice(-2);
@@ -14,19 +10,8 @@ const fmtChatTime = ts => {
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${yy}.${mm}.${dd} ${hh}:${mi}`;
 };
-
-export const openVoiceCallUi = ({
-  friendId,
-  name = 'Друг',
-  incoming = null,
-  core,
-  openModal,
-  toast,
-  confirmAction = async () => false,
-  onVoiceOpened = null
-} = {}) => {
+export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, core, openModal, toast, confirmAction = async () => false, onVoiceOpened = null } = {}) => {
   if (!friendId || !core || typeof openModal !== 'function') return false;
-
   let pc = null;
   let localStream = null;
   let roomId = incoming?.roomId || '';
@@ -46,8 +31,8 @@ export const openVoiceCallUi = ({
   let roomBusy = false;
   let cleanupObserver = null;
   const pendingIce = [];
-
-  const ov = openModal(`
+  const ov = openModal(
+    `
     <div class="vf-modal-head vf-chat-head">
       <button class="vf-btn vf-sec vf-chat-gear" type="button" id="vf-voice-info" title="Информация">ⓘ</button>
       <b>Звонок · ${esc(name)}</b>
@@ -66,10 +51,10 @@ export const openVoiceCallUi = ({
       <button class="vf-btn vf-sec" type="button" id="vf-voice-mute">🎙</button>
       <button class="vf-btn" type="button" id="vf-voice-call">${incoming ? 'Ответить' : 'Позвонить'}</button>
     </div>
-  `, { closeOnBackdrop: false });
-
+  `,
+    { closeOnBackdrop: false }
+  );
   ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal', 'vf-voice-modal');
-
   const log = ov.querySelector('.vf-voice-log');
   const statusEl = ov.querySelector('#vf-voice-status');
   const detailEl = ov.querySelector('#vf-voice-detail');
@@ -77,7 +62,6 @@ export const openVoiceCallUi = ({
   const audioEl = ov.querySelector('#vf-voice-audio');
   const callBtn = ov.querySelector('#vf-voice-call');
   const muteBtn = ov.querySelector('#vf-voice-mute');
-
   const setState = (title, detail = '') => {
     statusEl.textContent = title;
     detailEl.textContent = detail;
@@ -87,7 +71,6 @@ export const openVoiceCallUi = ({
     log.append(row);
     log.scrollTop = log.scrollHeight;
   };
-
   const renderHistory = async () => {
     try {
       const items = await core.getVoiceHistory(friendId);
@@ -101,9 +84,7 @@ export const openVoiceCallUi = ({
       });
     } catch {}
   };
-
   const fmtTimer = sec => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
-
   const startTimer = () => {
     startedAt = startedAt || Date.now();
     clearInterval(tickTimer);
@@ -111,7 +92,6 @@ export const openVoiceCallUi = ({
       timerEl.textContent = fmtTimer(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
     }, 1000);
   };
-
   const sendSignal = async (type, data) => {
     if (!roomId || !roomSecret || !remotePeerId || closed) return null;
     try {
@@ -122,18 +102,12 @@ export const openVoiceCallUi = ({
       return null;
     }
   };
-
   const createPeer = async () => {
     if (pc) return pc;
     setState('Запрашиваем микрофон', 'Браузер может показать системное окно разрешения.');
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      video: false
-    });
-
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
     const cfg = await core.getRtcConfig().catch(() => ({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }));
     pc = new RTCPeerConnection({ iceServers: cfg.iceServers || [] });
-
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
     pc.ontrack = e => {
       audioEl.srcObject = e.streams[0];
@@ -154,66 +128,47 @@ export const openVoiceCallUi = ({
       if (s === 'failed') setState('Соединение не удалось', 'Попробуйте ещё раз. Для мобильных сетей нужен TURN.');
       if (s === 'disconnected') setState('Связь временно прервалась', 'Ожидаем восстановление WebRTC.');
     };
-
     return pc;
   };
-
   const flushPendingIce = async () => {
     if (!pc?.remoteDescription) return;
-
     while (pendingIce.length) {
       const candidate = pendingIce.shift();
-      await pc
-        .addIceCandidate(new RTCIceCandidate(candidate))
-        .catch(() => null);
+      await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => null);
     }
   };
-
   const pollSignals = () => {
     clearInterval(pollTimer);
     pollTimer = setInterval(async () => {
       if (closed || document.hidden || !roomId || !roomSecret || pollBusy) return;
       pollBusy = true;
-
       try {
         const items = await core.pollVoiceSignals({ roomId, roomSecret, peerId: myPeerId });
         signalFails = 0;
-
         for (const msg of items) {
           try {
             if (!pc && ['offer', 'answer', 'candidate'].includes(msg.type)) await createPeer();
             if (msg.fromPeerId) remotePeerId = msg.fromPeerId;
-
             if (msg.type === 'offer') {
               setState('Получено предложение соединения', 'Готовим ответ собеседнику.');
-              await pc.setRemoteDescription(
-                new RTCSessionDescription(msg.data)
-              );
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
               await flushPendingIce();
-
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
               await sendSignal('answer', pc.localDescription);
             }
-
             if (msg.type === 'answer') {
               setState('Собеседник ответил', 'Завершаем установку WebRTC.');
-              await pc.setRemoteDescription(
-                new RTCSessionDescription(msg.data)
-              );
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
               await flushPendingIce();
             }
-
             if (msg.type === 'candidate') {
               if (!pc?.remoteDescription) {
                 pendingIce.push(msg.data);
               } else {
-                await pc
-                  .addIceCandidate(new RTCIceCandidate(msg.data))
-                  .catch(() => null);
+                await pc.addIceCandidate(new RTCIceCandidate(msg.data)).catch(() => null);
               }
             }
-
             if (msg.type === 'bye') {
               setState('Собеседник завершил звонок', 'Соединение закрыто.');
               await finish('ended_by_friend', false);
@@ -223,12 +178,7 @@ export const openVoiceCallUi = ({
             setState('Ошибка WebRTC-сигнала', 'Получен некорректный сигнал. Пробуем продолжить.');
           }
         }
-        await core.ackVoiceSignals({
-          roomId,
-          roomSecret,
-          peerId: myPeerId,
-          seqs: items.map(x => x.seq).filter(Boolean)
-        }).catch(() => null);
+        await core.ackVoiceSignals({ roomId, roomSecret, peerId: myPeerId, seqs: items.map(x => x.seq).filter(Boolean) }).catch(() => null);
       } catch {
         signalFails++;
         if (signalFails === 2) setState('Сигналинг нестабилен', 'Пробуем восстановить обмен данными...');
@@ -241,24 +191,19 @@ export const openVoiceCallUi = ({
       }
     }, 2200);
   };
-
   const waitAnswerAndOffer = () => {
     clearInterval(roomTimer);
     roomTimer = setInterval(async () => {
       if (closed || document.hidden || !roomId || !roomSecret || roomBusy) return;
       roomBusy = true;
-
       try {
         const res = await core.getRoom(roomId, roomSecret);
         const room = res?.room || null;
         roomFails = 0;
-
         if (!room?.guestPeerId || room.status === 'waiting') return;
-
         clearInterval(roomTimer);
         remotePeerId = room.guestPeerId;
         setState('Друг ответил', 'Создаём защищённое голосовое соединение.');
-
         try {
           await createPeer();
           const offer = await pc.createOffer({ offerToReceiveAudio: true });
@@ -279,7 +224,6 @@ export const openVoiceCallUi = ({
       }
     }, 2400);
   };
-
   const startOutgoing = async () => {
     callBtn.disabled = true;
     setState('Создаём звонок', 'Готовим комнату и отправляем push-вызов другу.');
@@ -294,15 +238,9 @@ export const openVoiceCallUi = ({
       waitAnswerAndOffer();
     } catch (err) {
       callBtn.disabled = false;
-      setState(
-        'Звонок не создан',
-        /RESOURCE_EXHAUSTED|resource_exhausted/i.test(String(err?.message || ''))
-          ? 'Сервис временно перегружен. Попробуйте еще раз через несколько секунд.'
-          : 'Не удалось создать комнату.'
-      );
+      setState('Звонок не создан', /RESOURCE_EXHAUSTED|resource_exhausted/i.test(String(err?.message || '')) ? 'Сервис временно перегружен. Попробуйте еще раз через несколько секунд.' : 'Не удалось создать комнату.');
     }
   };
-
   const answerIncoming = async () => {
     callBtn.disabled = true;
     setState('Отвечаем на звонок', 'Подключаем микрофон и присоединяемся к комнате.');
@@ -313,73 +251,57 @@ export const openVoiceCallUi = ({
       pollSignals();
       setState('Ожидаем голосовой канал', 'Ждём WebRTC offer от звонящего.');
     } catch (err) {
-      setState(
-        'Звонок уже принят',
-        /room_busy|room_already_has_guest|voice_busy/i.test(String(err?.message || ''))
-          ? 'Этот вызов уже принят на другом устройстве.'
-          : 'Не удалось ответить на звонок.'
-      );
+      setState('Звонок уже принят', /room_busy|room_already_has_guest|voice_busy/i.test(String(err?.message || '')) ? 'Этот вызов уже принят на другом устройстве.' : 'Не удалось ответить на звонок.');
       setTimeout(() => ov.vfClose?.(), 1200);
     }
   };
-
   const cleanupVoice = () => {
     if (closed) return;
     closed = true;
     clearInterval(pollTimer);
     clearInterval(roomTimer);
     clearInterval(tickTimer);
-    try { cleanupObserver?.disconnect?.(); } catch {}
-    try { pc?.close?.(); } catch {}
-    try { localStream?.getTracks?.().forEach(t => t.stop()); } catch {}
+    try {
+      cleanupObserver?.disconnect?.();
+    } catch {}
+    try {
+      pc?.close?.();
+    } catch {}
+    try {
+      localStream?.getTracks?.().forEach(t => t.stop());
+    } catch {}
     pc = null;
     localStream = null;
   };
-
   const finish = async (status = 'ended', ask = true) => {
     if (ask) {
-      const confirmed = await confirmAction({
-        title: 'Завершить звонок?',
-        text: 'Голосовое соединение с собеседником будет закрыто.',
-        confirmText: 'Завершить'
-      });
-
+      const confirmed = await confirmAction({ title: 'Завершить звонок?', text: 'Голосовое соединение с собеседником будет закрыто.', confirmText: 'Завершить' });
       if (!confirmed) return;
     }
-
     await sendSignal('bye', { at: Date.now() });
     const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
     cleanupVoice();
-    await core.endVoiceCall({
-      friendId,
-      callId,
-      roomId,
-      roomSecret,
-      status,
-      durationSec
-    }).catch(() => null);
+    await core.endVoiceCall({ friendId, callId, roomId, roomSecret, status, durationSec }).catch(() => null);
     ov.vfClose?.();
   };
-
   cleanupObserver = new MutationObserver(() => {
     if (!document.body.contains(ov)) cleanupVoice();
   });
   cleanupObserver.observe(document.body, { childList: true, subtree: true });
-
   ov.querySelector('#vf-voice-close').onclick = () => finish('closed', true);
   ov.querySelector('#vf-voice-cancel').onclick = () => finish('cancelled', true);
   ov.querySelector('#vf-voice-info').onclick = () => toast?.('Для стабильной связи в мобильных сетях нужен TURN-сервер');
-  callBtn.onclick = () => incoming ? answerIncoming() : startOutgoing();
+  callBtn.onclick = () => (incoming ? answerIncoming() : startOutgoing());
   muteBtn.onclick = () => {
     muted = !muted;
-    localStream?.getAudioTracks?.().forEach(t => { t.enabled = !muted; });
+    localStream?.getAudioTracks?.().forEach(t => {
+      t.enabled = !muted;
+    });
     muteBtn.textContent = muted ? '🔇' : '🎙';
     setState(muted ? 'Микрофон выключен' : 'Микрофон включён', muted ? 'Собеседник вас не слышит.' : 'Собеседник снова вас слышит.');
   };
-
   renderHistory();
   onVoiceOpened?.(friendId);
   return true;
 };
-
 export default { openVoiceCallUi };
