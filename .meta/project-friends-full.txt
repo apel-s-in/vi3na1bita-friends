@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-28 16:07:51 UTC
+Сгенерировано: 2026-07-28 16:58:41 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -428,20 +428,20 @@ permissions:
   contents: write
 
 concurrency:
-  group: war-hearts-context-${{ github.ref }}
+  group: friends-context-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   meta:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Generate Friends context
         run: |
