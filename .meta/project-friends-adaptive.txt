@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-27 23:52:21 UTC
+Сгенерировано: 2026-07-28 09:06:28 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -69,18 +69,28 @@ on:
       - '.meta/**'
       - '.github/workflows/generate-context.yml'
   workflow_dispatch:
+    inputs:
+      full_sync:
+        description: 'Полностью синхронизировать prefix Friends'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 concurrency:
   group: yc-s3-friends-deploy-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Incremental deploy public files
         env:
@@ -88,78 +98,320 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ru-central1
           BEFORE_SHA: ${{ github.event.before }}
+          FULL_SYNC: ${{ inputs.full_sync || false }}
+          EVENT_NAME: ${{ github.event_name }}
           BUCKET: vi3na1bita
           PREFIX: Friends
         run: |
           set -euo pipefail
 
+          upload_count=0
+          delete_count=0
+          mode="incremental"
+          sync_used="false"
+
           is_public_file() {
-            case "$1" in
-              .git/*|.github/*|.meta/*|generate-context.js|ai-rules.txt|README.md) return 1 ;;
-              *) return 0 ;;
+            local file="$1"
+
+            case "$file" in
+              .nojekyll|index.html|styles.css)
+                return 0
+                ;;
+              assets/*.json|assets/**/*.json)
+                return 0
+                ;;
+              assets/*.svg|assets/**/*.svg)
+                return 0
+                ;;
+              assets/*.webp|assets/**/*.webp)
+                return 0
+                ;;
+              assets/*.png|assets/**/*.png)
+                return 0
+                ;;
+              assets/*.jpg|assets/**/*.jpg)
+                return 0
+                ;;
+              assets/*.jpeg|assets/**/*.jpeg)
+                return 0
+                ;;
+              */*)
+                return 1
+                ;;
+              *.js|*.mjs|*.json|*.svg|*.webp|*.png|*.jpg|*.jpeg)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
             esac
           }
 
           upload_file() {
-            local f="$1"
-            [ -f "$f" ] || return 0
-            is_public_file "$f" || return 0
+            local file="$1"
 
-            local ct="application/octet-stream"
-            local cc="public, max-age=300"
-            case "$f" in
-              *.html) ct="text/html; charset=utf-8"; cc="no-cache, no-store, must-revalidate" ;;
-              *.css) ct="text/css; charset=utf-8"; cc="public, max-age=31536000, immutable" ;;
-              *.js|*.mjs) ct="application/javascript; charset=utf-8"; cc="public, max-age=31536000, immutable" ;;
-              *.json) ct="application/json; charset=utf-8" ;;
-              *.svg) ct="image/svg+xml" ;;
-              *.webp|*.png|*.jpg) ct="image/${f##*.}"; cc="public, max-age=86400" ;;
+            [ -f "$file" ] || return 0
+            is_public_file "$file" || return 0
+
+            local content_type="application/octet-stream"
+            local cache_control="public, max-age=300, must-revalidate"
+
+            case "$file" in
+              index.html)
+                content_type="text/html; charset=utf-8"
+                cache_control="no-cache, no-store, must-revalidate"
+                ;;
+              styles.css)
+                content_type="text/css; charset=utf-8"
+                cache_control="public, max-age=300, must-revalidate"
+                ;;
+              *.js|*.mjs)
+                content_type="application/javascript; charset=utf-8"
+                cache_control="public, max-age=300, must-revalidate"
+                ;;
+              *.json)
+                content_type="application/json; charset=utf-8"
+                cache_control="public, max-age=300, must-revalidate"
+                ;;
+              *.svg)
+                content_type="image/svg+xml"
+                cache_control="public, max-age=86400"
+                ;;
+              *.webp)
+                content_type="image/webp"
+                cache_control="public, max-age=86400"
+                ;;
+              *.png)
+                content_type="image/png"
+                cache_control="public, max-age=86400"
+                ;;
+              *.jpg|*.jpeg)
+                content_type="image/jpeg"
+                cache_control="public, max-age=86400"
+                ;;
+              .nojekyll)
+                content_type="text/plain; charset=utf-8"
+                cache_control="no-cache"
+                ;;
             esac
 
-            echo "PUT $f"
-            aws --endpoint-url=https://storage.yandexcloud.net s3 cp "$f" "s3://$BUCKET/$PREFIX/$f" \
+            echo "PUT $file"
+
+            aws \
+              --endpoint-url=https://storage.yandexcloud.net \
+              s3 cp \
+              "$file" \
+              "s3://$BUCKET/$PREFIX/$file" \
               --only-show-errors \
-              --cache-control "$cc" \
-              --content-type "$ct"
+              --cache-control "$cache_control" \
+              --content-type "$content_type"
+
+            upload_count=$((upload_count + 1))
           }
 
           delete_file() {
-            local f="$1"
-            is_public_file "$f" || return 0
-            echo "DELETE $f"
-            aws --endpoint-url=https://storage.yandexcloud.net s3 rm "s3://$BUCKET/$PREFIX/$f" --only-show-errors || true
+            local file="$1"
+
+            is_public_file "$file" || return 0
+
+            echo "DELETE $file"
+
+            aws \
+              --endpoint-url=https://storage.yandexcloud.net \
+              s3 rm \
+              "s3://$BUCKET/$PREFIX/$file" \
+              --only-show-errors \
+              || true
+
+            delete_count=$((delete_count + 1))
           }
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ -z "${BEFORE_SHA:-}" ] || [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
-            echo "Manual/initial deploy: full public sync"
-            aws --endpoint-url=https://storage.yandexcloud.net s3 sync ./ "s3://$BUCKET/$PREFIX/" \
-              --delete --only-show-errors \
+          publish_or_delete() {
+            local file="$1"
+
+            if [ -f "$file" ]; then
+              upload_file "$file"
+            else
+              delete_file "$file"
+            fi
+          }
+
+          write_summary() {
+            {
+              echo "## Friends Object Storage deploy"
+              echo ""
+              echo "- Mode: $mode"
+              echo "- Actor: $GITHUB_ACTOR"
+              echo "- Event: $EVENT_NAME"
+              echo "- Run ID: $GITHUB_RUN_ID"
+              echo "- Commit: $GITHUB_SHA"
+              echo "- Direct PUT operations: $upload_count"
+              echo "- Direct DELETE operations: $delete_count"
+              echo "- S3 sync used: $sync_used"
+              echo "- Destination: s3://$BUCKET/$PREFIX/"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          base_sha="${BEFORE_SHA:-}"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$FULL_SYNC" != "true" ]; then
+            base_sha="$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || true)"
+            echo "Manual incremental deploy: ${base_sha:-missing} -> $GITHUB_SHA"
+          fi
+
+          if [ "$FULL_SYNC" = "true" ]; then
+            mode="full"
+          elif [ -z "$base_sha" ] || [[ "$base_sha" =~ ^0+$ ]]; then
+            mode="full"
+          elif ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            echo "Base commit is unavailable: $base_sha"
+            echo "Refusing implicit full deploy."
+            echo "Run this workflow manually with full_sync=true if a full repair is required."
+            exit 2
+          fi
+
+          if [ "$mode" = "full" ]; then
+            sync_used="true"
+
+            echo "Explicit/initial full synchronization"
+            echo "Destination: s3://$BUCKET/$PREFIX/"
+
+            aws \
+              --endpoint-url=https://storage.yandexcloud.net \
+              s3 sync \
+              ./ \
+              "s3://$BUCKET/$PREFIX/" \
+              --delete \
+              --only-show-errors \
               --exclude "*" \
+              --include ".nojekyll" \
               --include "*.html" \
               --include "*.css" \
               --include "*.js" \
+              --include "*.mjs" \
               --include "*.json" \
               --include "*.svg" \
               --include "*.webp" \
               --include "*.png" \
               --include "*.jpg" \
+              --include "*.jpeg" \
+              --include "assets/*" \
+              --include "assets/**" \
               --exclude ".git/*" \
+              --exclude ".git/**" \
               --exclude ".github/*" \
+              --exclude ".github/**" \
               --exclude ".meta/*" \
+              --exclude ".meta/**" \
               --exclude "generate-context.js" \
               --exclude "ai-rules.txt" \
-              --exclude "README.md"
+              --exclude "README.md" \
+              --exclude "friends-crypto.js" \
+              --exclude "crypto-devices-ui.js" \
+              --exclude "modal-adapter.js" \
+              --exclude "games-registry.js" \
+              --exclude "embedded-rpc-contract.js" \
+              --exclude "voice-call-ui.js" \
+              --exclude "chat-text-ui.js" \
+              --exclude "friends-core.js" \
+              --exclude "friends-ui.js" \
+              --exclude "styles.css" \
+              --exclude "index.html"
+
+            publish_or_delete "friends-crypto.js"
+            publish_or_delete "crypto-devices-ui.js"
+            publish_or_delete "modal-adapter.js"
+            publish_or_delete "games-registry.js"
+            publish_or_delete "embedded-rpc-contract.js"
+            publish_or_delete "voice-call-ui.js"
+            publish_or_delete "chat-text-ui.js"
+            publish_or_delete "friends-core.js"
+            publish_or_delete "friends-ui.js"
+            publish_or_delete "styles.css"
+            publish_or_delete "index.html"
+
+            write_summary
             exit 0
           fi
 
-          git diff --name-status "$BEFORE_SHA" "$GITHUB_SHA" | while IFS=$'\t' read -r status a b; do
-            file="${b:-$a}"
-            if [[ "$status" == D* ]]; then
-              delete_file "$a"
-            else
+          echo "Incremental Friends deploy"
+          echo "Base: $base_sha"
+          echo "Head: $GITHUB_SHA"
+
+          mapfile -t changed_files < <(
+            git diff \
+              --no-renames \
+              --name-only \
+              --diff-filter=ACMTUXB \
+              "$base_sha" \
+              "$GITHUB_SHA"
+          )
+
+          mapfile -t deleted_files < <(
+            git diff \
+              --no-renames \
+              --name-only \
+              --diff-filter=D \
+              "$base_sha" \
+              "$GITHUB_SHA"
+          )
+
+          declare -A changed_set=()
+
+          for file in "${changed_files[@]}"; do
+            changed_set["$file"]=1
+          done
+
+          priority_files=(
+            "friends-crypto.js"
+            "crypto-devices-ui.js"
+            "modal-adapter.js"
+            "games-registry.js"
+            "embedded-rpc-contract.js"
+            "voice-call-ui.js"
+            "chat-text-ui.js"
+            "friends-core.js"
+            "friends-ui.js"
+            "styles.css"
+            "index.html"
+          )
+
+          is_priority_file() {
+            local candidate="$1"
+            local priority
+
+            for priority in "${priority_files[@]}"; do
+              if [ "$candidate" = "$priority" ]; then
+                return 0
+              fi
+            done
+
+            return 1
+          }
+
+          for file in "${changed_files[@]}"; do
+            if is_priority_file "$file"; then
+              continue
+            fi
+
+            upload_file "$file"
+          done
+
+          for file in "${priority_files[@]}"; do
+            if [ -n "${changed_set[$file]+x}" ]; then
               upload_file "$file"
             fi
           done
+
+          for file in "${deleted_files[@]}"; do
+            delete_file "$file"
+          done
+
+          if [ "$upload_count" -eq 0 ] && [ "$delete_count" -eq 0 ]; then
+            echo "No public Friends files changed"
+          fi
+
+          write_summary
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
