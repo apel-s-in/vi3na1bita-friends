@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-28 16:03:14 UTC
+Сгенерировано: 2026-07-28 16:05:21 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -2500,18 +2500,14 @@ export default FriendsCrypto;
 
 //=================================================
 // FILE: /friends-ui.js
+/* GENERATED_FROM=input.js SOURCE_SHA256=299c8335e213205530c3b98e0278c96159eb855aeab2ebe762a71f441c797962 FORMAT=READABLE_COMPACT PRINT_WIDTH=320 BLANK_LINES=SAFE_REMOVE DO_NOT_EDIT */
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
-
 import { getPlayableGames } from './games-registry.js?v=9.1.9';
 import { createFriendsModalAdapter } from './modal-adapter.js?v=9.1.9';
 import { openTextChatModal } from './chat-text-ui.js?v=9.1.9';
 import { openVoiceCallUi } from './voice-call-ui.js?v=9.1.9';
-
-const esc = v => String(v || '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-})[c]);
-
+const esc = v => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]);
 const renderFeatureCards = () => `
   <div class="friends-feature-grid">
     <div class="friends-feature-card">
@@ -2558,7 +2554,6 @@ const renderFeatureCards = () => `
     </div>
   </div>
 `;
-
 const renderFriendsGuide = webPushEnabled => `
   <section class="friends-authorized-guide">
     <div class="friends-guide-head">
@@ -2597,57 +2592,64 @@ const renderFriendsGuide = webPushEnabled => `
 `;
 export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
   if (!root) return null;
-
   const el = document.createElement('section');
   el.className = 'vf-wrap';
   root.append(el);
   let activeChatApi = null;
-
   const toast = text => {
     let t = el.querySelector('.vf-toast');
-    if (!t) { t = document.createElement('div'); t.className = 'vf-toast'; el.append(t); }
+    if (!t) {
+      t = document.createElement('div');
+      t.className = 'vf-toast';
+      el.append(t);
+    }
     t.textContent = text;
     t.classList.add('is-show');
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => t.classList.remove('is-show'), 1600);
   };
-
   const renderList = (friends = [], presence = {}) => {
-    const webPushEnabled =
-      typeof getWebPushEnabled === 'function' &&
-      getWebPushEnabled();
-
+    const webPushEnabled = typeof getWebPushEnabled === 'function' && getWebPushEnabled();
     return `
       ${renderFriendsGuide(webPushEnabled)}
       <div class="vf-list">
-      ${friends.length ? friends.map(f => {
-        const fid = f.friendId;
-        const name = f.profile?.displayName || 'Друг';
-        const avatar = f.profile?.avatarUrl;
-        const online = !!presence[fid]?.online;
-        const unread = typeof getUnread === 'function' ? Number(getUnread(fid) || 0) : 0;
-        return `
+      ${
+        friends.length
+          ? friends
+              .map(f => {
+                const fid = f.friendId;
+                const name = f.profile?.displayName || 'Друг';
+                const avatar = f.profile?.avatarUrl;
+                const online = !!presence[fid]?.online;
+                const unread = typeof getUnread === 'function' ? Number(getUnread(fid) || 0) : 0;
+                return `
           <button class="vf-friend" type="button" data-friend="${esc(fid)}" data-name="${esc(name)}">
             <span class="vf-ava">${avatar ? `<img src="${esc(avatar)}" alt="">` : '👤'}</span>
             <b>${esc(name)}</b>
-            ${unread ? `
+            ${
+              unread
+                ? `
               <span class="vf-unread" role="button" tabindex="0" data-unread-chat="${esc(fid)}" title="Открыть новое сообщение">
                 💌${unread > 1 ? `<i>${unread > 9 ? '9+' : unread}</i>` : ''}
               </span>
-            ` : `<small class="${online ? 'is-online' : ''}">${online ? 'онлайн' : 'не в сети'}</small>`}
+            `
+                : `<small class="${online ? 'is-online' : ''}">${online ? 'онлайн' : 'не в сети'}</small>`
+            }
           </button>
         `;
-      }).join('') : `
+              })
+              .join('')
+          : `
         <div class="vf-empty">
           <span>👥</span>
           <b>Друзей пока нет</b>
           <small>Добавь друга по защищённой ссылке или временному коду.</small>
         </div>
-      `}
+      `
+      }
       </div>
     `;
   };
-
   const refresh = async ({ force = false } = {}) => {
     if (!core.isReady()) {
       el.innerHTML = `<div class="vf-empty"><span>🔒</span><b>Войдите через Яндекс</b><small>Друзья доступны после входа в основном приложении.</small></div>`;
@@ -2663,31 +2665,24 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       el.innerHTML = `<div class="vf-empty"><span>⚠️</span><b>Не удалось загрузить</b><small>${esc(err.message)}</small></div>`;
     }
   };
-
   const bindList = () => {
-    el.querySelector('[data-act="add"]')
-      ?.addEventListener('click', openAddModal);
-
-    el.querySelector('[data-act="refresh"]')
-      ?.addEventListener('click', async event => {
-        const button = event.currentTarget;
-        button.disabled = true;
-        button.textContent = '↻ Обновляем...';
-
-        try {
-          await refresh({ force: true });
-          toast('Список друзей обновлён');
-        } catch {
-          toast('Не удалось обновить список');
-        }
-      });
-
+    el.querySelector('[data-act="add"]')?.addEventListener('click', openAddModal);
+    el.querySelector('[data-act="refresh"]')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = '↻ Обновляем...';
+      try {
+        await refresh({ force: true });
+        toast('Список друзей обновлён');
+      } catch {
+        toast('Не удалось обновить список');
+      }
+    });
     el.querySelector('[data-act="notify"]')?.addEventListener('click', async () => {
       if (typeof onEnableWebPush !== 'function') {
         toast('Системные уведомления доступны в основном приложении');
         return;
       }
-
       const res = await onEnableWebPush();
       toast(res?.ok ? 'Системные уведомления включены' : `Уведомления не включены: ${res?.reason || 'ошибка'}`);
     });
@@ -2700,12 +2695,10 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         else void openChat(friendId);
       });
     });
-
     el.querySelectorAll('[data-friend]').forEach(btn => {
       btn.addEventListener('click', () => openFriendActions(btn.dataset.friend, btn.dataset.name || 'Друг'));
     });
   };
-
   const openModal = (html, { closeOnBackdrop = true } = {}) => {
     const ov = document.createElement('div');
     ov.className = 'vf-modal-ov';
@@ -2713,7 +2706,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     document.documentElement.classList.add('vf-modal-lock');
     document.body.classList.add('vf-modal-lock');
     el.append(ov);
-
     const close = () => {
       ov.remove();
       if (!document.querySelector('.vf-modal-ov')) {
@@ -2721,22 +2713,15 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         document.body.classList.remove('vf-modal-lock');
       }
     };
-
     ov.vfClose = close;
-
     if (closeOnBackdrop) {
       ov.addEventListener('click', event => {
         if (event.target === ov) close();
       });
     }
-
     return ov;
   };
-
-  const modal = createFriendsModalAdapter({
-    openModal
-  });
-
+  const modal = createFriendsModalAdapter({ openModal });
   const openFriendActions = (friendId, name) => {
     const games = getPlayableGames();
     const ov = openModal(`
@@ -2752,22 +2737,18 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         ${games.map(g => `<button class="vf-btn vf-sec" data-game="${esc(g.id)}">${esc(g.icon)} ${esc(g.title)}</button>`).join('')}
       </div>
     `);
-
     ov.querySelector('[data-a="invite"]')?.addEventListener('click', () => {
       ov.querySelector('.vf-games').hidden = false;
     });
-
     ov.querySelectorAll('[data-game]').forEach(b => {
       b.addEventListener('click', async () => {
         const gameId = b.dataset.game;
         const gameTitle = b.textContent.trim();
         let online = false;
-
         try {
           const presence = await core.getPresence([friendId]);
           online = !!presence[friendId]?.online;
         } catch {}
-
         ov.querySelector('.vf-modal').innerHTML = `
           <div class="vf-modal-head"><span class="vf-ava">👤</span><b>${esc(name)}</b></div>
           <div style="text-align:left;display:grid;gap:10px;margin-bottom:14px">
@@ -2781,7 +2762,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
             <button class="vf-btn vf-sec" data-cancel-invite>Отклонить</button>
           </div>
         `;
-
         ov.querySelector('[data-cancel-invite]')?.addEventListener('click', () => ov.vfClose?.());
         ov.querySelector('[data-confirm-invite]')?.addEventListener('click', async () => {
           ov.querySelector('.vf-modal').innerHTML = `
@@ -2795,10 +2775,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
               </div>
             </div>
           `;
-
           ov.querySelector('[data-wait-cancel]')?.addEventListener('click', () => ov.vfClose?.());
           ov.querySelector('[data-wait-extend]')?.addEventListener('click', () => toast('Ожидание продлено'));
-
           if (typeof onGameInvite === 'function') {
             await onGameInvite({ friendId, gameId });
           } else {
@@ -2807,7 +2785,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         });
       });
     });
-
     ov.querySelector('[data-a="chat"]')?.addEventListener('click', () => {
       ov.vfClose?.();
       void openChat(friendId);
@@ -2826,41 +2803,30 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const ok = await openVoiceCall(friendId);
       if (!ok) toast('Звонок уже принят на другом устройстве или сервис перегружен');
     });
-
     ov.querySelector('[data-a="remove"]')?.addEventListener('click', async () => {
       ov.vfClose?.();
-      try { await core.removeFriend(friendId); toast('Друг удалён'); refresh({ force: true }); }
-      catch (err) { toast(`Ошибка: ${err.message}`); }
+      try {
+        await core.removeFriend(friendId);
+        toast('Друг удалён');
+        refresh({ force: true });
+      } catch (err) {
+        toast(`Ошибка: ${err.message}`);
+      }
     });
   };
-
-  const openChatModal = (friendId, name = 'Друг') => openTextChatModal({
-    friendId,
-    name,
-    core,
-    openModal,
-    toast,
-    confirmAction: modal.confirm,
-    onActiveChatChange: api => {
-      activeChatApi = api;
-    }
-  });
-
-  const openVoiceCallModal = (
-    friendId,
-    name = 'Друг',
-    incoming = null
-  ) => openVoiceCallUi({
-    friendId,
-    name,
-    incoming,
-    core,
-    openModal,
-    toast,
-    confirmAction: modal.confirm,
-    onVoiceOpened
-  });
-
+  const openChatModal = (friendId, name = 'Друг') =>
+    openTextChatModal({
+      friendId,
+      name,
+      core,
+      openModal,
+      toast,
+      confirmAction: modal.confirm,
+      onActiveChatChange: api => {
+        activeChatApi = api;
+      }
+    });
+  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => openVoiceCallUi({ friendId, name, incoming, core, openModal, toast, confirmAction: modal.confirm, onVoiceOpened });
   const openVoiceCall = async (friendId, incoming = null) => {
     if (!friendId) return false;
     let name = 'Друг';
@@ -2870,7 +2836,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     } catch {}
     return openVoiceCallModal(friendId, name, incoming);
   };
-
   const openAddModal = async () => {
     const ov = openModal(`
       <div class="vf-modal-head" style="justify-content:space-between">
@@ -2880,7 +2845,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       <div class="vf-add-body"><p>Создаём приглашение...</p></div>
     `);
     ov.querySelector('#vf-add-close').onclick = () => ov.vfClose?.();
-
     try {
       const invite = await core.createInvite();
       const url = invite.url;
@@ -2902,16 +2866,20 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           </div>
         </div>
       `;
-      
-      ov.querySelector('[data-x="copy"]')?.addEventListener('click', () => { navigator.clipboard?.writeText?.(url); toast('Ссылка скопирована'); });
+      ov.querySelector('[data-x="copy"]')?.addEventListener('click', () => {
+        navigator.clipboard?.writeText?.(url);
+        toast('Ссылка скопирована');
+      });
       ov.querySelector('[data-x="share"]')?.addEventListener('click', () => {
         if (navigator.share) navigator.share({ title: 'Витрина · Друзья', text: 'Добавь меня в друзья', url }).catch(() => {});
-        else { navigator.clipboard?.writeText?.(url); toast('Ссылка скопирована'); }
+        else {
+          navigator.clipboard?.writeText?.(url);
+          toast('Ссылка скопирована');
+        }
       });
       ov.querySelector('[data-x="mail"]')?.addEventListener('click', () => {
         location.href = `mailto:?subject=${encodeURIComponent('Добавь меня в друзья')}&body=${encodeURIComponent(url)}`;
       });
-
       ov.querySelector('[data-x="nearby"]')?.addEventListener('click', async () => {
         const box = ov.querySelector('.vf-nearby-box');
         box.hidden = false;
@@ -2944,7 +2912,6 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           box.innerHTML = `<p>Ошибка: ${esc(err.message)}</p>`;
         }
       });
-
       ov.querySelector('#vf-manual-submit').onclick = async () => {
         const val = ov.querySelector('#vf-manual-link').value.trim();
         if (!val) return;
@@ -2952,15 +2919,17 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
           let addId, addKey;
           if (val.includes('addFriend=')) {
             let u;
-            try { u = new URL(val); } catch { u = new URL('https://dummy.com/' + (val.startsWith('?') ? val : '?' + val)); }
+            try {
+              u = new URL(val);
+            } catch {
+              u = new URL('https://dummy.com/' + (val.startsWith('?') ? val : '?' + val));
+            }
             addId = u.searchParams.get('addFriend');
             addKey = u.searchParams.get('key');
           } else {
             return toast('Для добавления нужна полная ссылка. Короткие коды устарели.');
           }
-
           if (!addId || !addKey) return toast('Неверная ссылка. Скопируйте целиком.');
-
           ov.vfClose?.();
           toast('Добавляем...');
           await core.acceptInvite({ inviteId: addId, secret: addKey });
@@ -2985,19 +2954,11 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
       const p = await core.getProfile(friendId);
       if (p?.displayName) name = p.displayName;
     } catch {}
-
     const opened = openChatModal(friendId, name);
     if (opened !== false) onChatOpened?.(friendId);
     return opened !== false;
   };
-
-  return {
-    refresh,
-    openChat,
-    openVoiceCall,
-    getActiveChatFriendId: () => activeChatApi?.friendId || '',
-    pushIncomingChat
-  };
+  return { refresh, openChat, openVoiceCall, getActiveChatFriendId: () => activeChatApi?.friendId || '', pushIncomingChat };
 };
 
 //=================================================
