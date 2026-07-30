@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-07-30 16:17:24 UTC
+Сгенерировано: 2026-07-30 16:58:17 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1982,6 +1982,7 @@ export class FriendsCore {
     this.signalingUrl = signalingUrl;
     this.identity = null;
     this._cache = { friends: [], at: 0 };
+    this._presenceCache = { key: '', value: {}, at: 0, pending: null };
     this.onError = () => {};
     this.chatE2eeV2 = CHAT_E2EE_V2;
     this.crypto = new FriendsCrypto({ request: (action, data) => this._req(action, data) });
@@ -2050,12 +2051,28 @@ export class FriendsCore {
   async heartbeat({ gameId = '', roomId = '' } = {}) {
     return this._req('presence_heartbeat', { deviceId: this.identity.deviceStableId || 'web', gameId: safe(gameId), roomId: safe(roomId) });
   }
-  async getPresence(friendIds = []) {
-    const ids = friendIds.map(safe).filter(Boolean).slice(0, 50);
+  async getPresence(friendIds = [], { force = false } = {}) {
+    const ids = [...new Set(friendIds.map(safe).filter(Boolean))].sort().slice(0, 50);
     if (!ids.length) return {};
-    const res = await this._req('presence_batch', { friendIds: ids });
-    return res.presence || {};
-  }
+    const key = ids.join('|');
+    if (!force && this._presenceCache.key === key && Date.now() - this._presenceCache.at < 60000) {
+      return { ...this._presenceCache.value };
+    }
+    if (this._presenceCache.pending && this._presenceCache.key === key) {
+      return this._presenceCache.pending;
+    }
+    this._presenceCache.key = key;
+    this._presenceCache.pending = this._req('presence_batch', { friendIds: ids })
+      .then(result => {
+        const value = result.presence || {};
+        this._presenceCache = { key, value, at: Date.now(), pending: null };
+        return { ...value };
+      })
+      .finally(() => {
+        if (this._presenceCache.key === key) this._presenceCache.pending = null;
+      });
+    return this._presenceCache.pending;
+  }}
   async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '', clientMsgId = '' }) {
     const cryptoPack = await this.crypto.encryptPayload({ friendId: toFriendId, clientMsgId, kind: 'message', payload: { type: 'message', text: safe(text).slice(0, 1000), replyToMsgId: safe(replyToMsgId), replyText: safe(replyText).slice(0, 160), reactions: {} } });
     return this._req('chat_send_v2', { toFriendId: safe(toFriendId), clientMsgId: cryptoPack.clientMsgId, crypto: cryptoPack });
