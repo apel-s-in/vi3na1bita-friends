@@ -156,7 +156,7 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     el.innerHTML = `<div class="vf-empty"><span>⏳</span><b>Загружаем друзей...</b></div>`;
     try {
       const friends = await core.getFriendList({ force });
-      const presence = friends.length ? await core.getPresence(friends.map(f => f.friendId)) : {};
+      const presence = friends.length ? await core.getPresence(friends.map(f => f.friendId), { force }) : {};
       el.innerHTML = renderList(friends, presence);
       bindList();
     } catch (err) {
