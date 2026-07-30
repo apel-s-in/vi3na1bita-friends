@@ -124,7 +124,7 @@ export class FriendsCore {
         if (this._presenceCache.key === key) this._presenceCache.pending = null;
       });
     return this._presenceCache.pending;
-  }}
+  }
   async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '', clientMsgId = '' }) {
     const cryptoPack = await this.crypto.encryptPayload({ friendId: toFriendId, clientMsgId, kind: 'message', payload: { type: 'message', text: safe(text).slice(0, 1000), replyToMsgId: safe(replyToMsgId), replyText: safe(replyText).slice(0, 160), reactions: {} } });
     return this._req('chat_send_v2', { toFriendId: safe(toFriendId), clientMsgId: cryptoPack.clientMsgId, crypto: cryptoPack });
