@@ -1,6 +1,6 @@
 // /Friends/friends-core.js
 // Data + identity + network для модуля Друзья. Без DOM.
-import { FriendsCrypto } from './friends-crypto.js?v=9.2.6';
+import { FriendsCrypto } from './friends-crypto.js?v=9.2.7';
 const SIGNALING_URL = 'https://functions.yandexcloud.net/d4e2epg33mkshjoar6av';
 export const CHAT_E2EE_V2 = true;
 const safe = v => String(v == null ? '' : v).trim();
