@@ -116,7 +116,7 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
       startTimer();
     };
     pc.onicecandidate = e => {
-      if (e.candidate) sendSignal('candidate', e.candidate.toJSON ? e.candidate.toJSON() : e.candidate);
+      if (e.candidate) sendSignal('ice', e.candidate.toJSON ? e.candidate.toJSON() : e.candidate);
     };
     pc.onconnectionstatechange = () => {
       const s = pc.connectionState;
@@ -147,7 +147,7 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
         signalFails = 0;
         for (const msg of items) {
           try {
-            if (!pc && ['offer', 'answer', 'candidate'].includes(msg.type)) await createPeer();
+            if (!pc && ['offer', 'answer', 'ice'].includes(msg.type)) await createPeer();
             if (msg.fromPeerId) remotePeerId = msg.fromPeerId;
             if (msg.type === 'offer') {
               setState('Получено предложение соединения', 'Готовим ответ собеседнику.');
@@ -162,7 +162,7 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
               await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
               await flushPendingIce();
             }
-            if (msg.type === 'candidate') {
+            if (msg.type === 'ice') {
               if (!pc?.remoteDescription) {
                 pendingIce.push(msg.data);
               } else {
