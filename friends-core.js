@@ -33,14 +33,16 @@ export class FriendsCore {
   constructor({ signalingUrl = SIGNALING_URL } = {}) {
     this.signalingUrl = signalingUrl;
     this.identity = null;
-    this._cache = { friends: [], at: 0 };
-    this._presenceCache = { key: '', value: {}, at: 0, pending: null };
+    this._snapshot = { revision: '', friends: [], presence: {}, at: 0, pending: null };
+    this._profiles = new Map();
     this.onError = () => {};
     this.chatE2eeV2 = CHAT_E2EE_V2;
     this.crypto = new FriendsCrypto({ request: (action, data) => this._req(action, data) });
   }
   // Identity приходит только от основного приложения.
   setIdentity(identity = {}) {
+    const previousFriendId = safe(this.identity?.friendId);
+    const previousSession = safe(this.identity?.socialSession);
     this.identity = {
       friendId: safe(identity.friendId),
       displayName: safe(identity.displayName || 'Слушатель'),
@@ -50,6 +52,9 @@ export class FriendsCore {
       socialSession: safe(identity.socialSession || ''),
       sessionExpiresAt: Number(identity.sessionExpiresAt || 0)
     };
+    if (previousFriendId !== this.identity.friendId || previousSession !== this.identity.socialSession) {
+      this.invalidateFriendsSnapshot('identity_changed');
+    }
     this.crypto.setIdentity(this.identity);
     return this.identity;
   }
@@ -82,48 +87,68 @@ export class FriendsCore {
     return json;
   }
   async register() {
-    await this._req('player_register', { displayName: this.identity.displayName });
-    await this.syncProfile();
     await this.crypto.ensureDevice();
     return true;
   }
-  async syncProfile() {
-    return this._req('profile_set', { displayName: this.identity.displayName, avatarUrl: this.identity.avatar });
+  invalidateFriendsSnapshot(reason = 'manual') {
+    this._snapshot = { revision: '', friends: [], presence: {}, at: 0, pending: null, reason };
+    this._profiles.clear();
+    return true;
+  }
+  async getFriendsSnapshot({ force = false } = {}) {
+    if (!force && this._snapshot.at > 0) {
+      return {
+        version: 1,
+        revision: this._snapshot.revision,
+        items: this._snapshot.friends,
+        presence: { ...this._snapshot.presence },
+        generatedAt: this._snapshot.at,
+        cached: true
+      };
+    }
+    if (this._snapshot.pending) return this._snapshot.pending;
+
+    this._snapshot.pending = this._req('friends_snapshot', {})
+      .then(result => {
+        const snapshot = result?.snapshot || {};
+        const friends = Array.isArray(snapshot.items) ? snapshot.items : [];
+        const presence = snapshot.presence && typeof snapshot.presence === 'object' ? snapshot.presence : {};
+        friends.forEach(item => {
+          if (item?.friendId && item?.profile) this._profiles.set(item.friendId, item.profile);
+        });
+        this._snapshot = {
+          revision: safe(snapshot.revision),
+          friends,
+          presence,
+          at: Number(snapshot.generatedAt || Date.now()),
+          pending: null
+        };
+        return {
+          version: 1,
+          revision: this._snapshot.revision,
+          items: friends,
+          presence: { ...presence },
+          generatedAt: this._snapshot.at,
+          cached: false
+        };
+      })
+      .finally(() => {
+        this._snapshot.pending = null;
+      });
+
+    return this._snapshot.pending;
   }
   async getFriendList({ force = false } = {}) {
-    if (!force && this._cache.friends.length && Date.now() - this._cache.at < 30000) {
-      return this._cache.friends;
-    }
-    const res = await this._req('friend_list', {});
-    const items = Array.isArray(res.items) ? res.items : [];
-    this._cache = { friends: items, at: Date.now() };
-    return items;
+    return (await this.getFriendsSnapshot({ force })).items;
   }
-  // Presence только по требованию (батч).
   async heartbeat({ gameId = '', roomId = '' } = {}) {
     return this._req('presence_heartbeat', { deviceId: this.identity.deviceStableId || 'web', gameId: safe(gameId), roomId: safe(roomId) });
   }
   async getPresence(friendIds = [], { force = false } = {}) {
-    const ids = [...new Set(friendIds.map(safe).filter(Boolean))].sort().slice(0, 50);
+    const ids = [...new Set(friendIds.map(safe).filter(Boolean))].slice(0, 50);
     if (!ids.length) return {};
-    const key = ids.join('|');
-    if (!force && this._presenceCache.key === key && Date.now() - this._presenceCache.at < 60000) {
-      return { ...this._presenceCache.value };
-    }
-    if (this._presenceCache.pending && this._presenceCache.key === key) {
-      return this._presenceCache.pending;
-    }
-    this._presenceCache.key = key;
-    this._presenceCache.pending = this._req('presence_batch', { friendIds: ids })
-      .then(result => {
-        const value = result.presence || {};
-        this._presenceCache = { key, value, at: Date.now(), pending: null };
-        return { ...value };
-      })
-      .finally(() => {
-        if (this._presenceCache.key === key) this._presenceCache.pending = null;
-      });
-    return this._presenceCache.pending;
+    const snapshot = await this.getFriendsSnapshot({ force });
+    return Object.fromEntries(ids.map(id => [id, snapshot.presence[id] || { online: false }]));
   }
   async sendChatMessage({ toFriendId, text, replyToMsgId = '', replyText = '', clientMsgId = '' }) {
     const cryptoPack = await this.crypto.encryptPayload({ friendId: toFriendId, clientMsgId, kind: 'message', payload: { type: 'message', text: safe(text).slice(0, 1000), replyToMsgId: safe(replyToMsgId), replyText: safe(replyText).slice(0, 160), reactions: {} } });
@@ -256,8 +281,9 @@ export class FriendsCore {
     return Array.isArray(res.messages) ? res.messages : [];
   }
   async removeFriend(friendId) {
-    this._cache.at = 0;
-    return this._req('friend_remove', { targetId: safe(friendId) });
+    const result = await this._req('friend_remove', { targetId: safe(friendId) });
+    this.invalidateFriendsSnapshot('friend_removed');
+    return result;
   }
   async createInvite() {
     const res = await this._req('friend_invite_create', {});
@@ -265,8 +291,9 @@ export class FriendsCore {
     return { ...res, url, code: shortCode(res.inviteId) };
   }
   async acceptInvite({ inviteId, secret }) {
-    this._cache.at = 0;
-    return this._req('friend_invite_accept', { inviteId: safe(inviteId), secret: safe(secret) });
+    const result = await this._req('friend_invite_accept', { inviteId: safe(inviteId), secret: safe(secret) });
+    this.invalidateFriendsSnapshot('friend_invite_accepted');
+    return result;
   }
   async getInviteInfo(inviteId, secret) {
     const res = await fetch(this.signalingUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'friend_invite_get', inviteId: safe(inviteId), secret: safe(secret) }) });
@@ -289,7 +316,11 @@ export class FriendsCore {
     return this._req('push_ack', { deviceId: device.deviceId, pushIds: ids });
   }
   async getProfile(targetId) {
-    const res = await this._req('profile_get', { targetId: safe(targetId) });
+    const id = safe(targetId);
+    if (!id) return null;
+    if (this._profiles.has(id)) return this._profiles.get(id);
+    const res = await this._req('profile_get', { targetId: id });
+    if (res.profile) this._profiles.set(id, res.profile);
     return res.profile || null;
   }
   async getWebPushConfig() {
@@ -306,8 +337,9 @@ export class FriendsCore {
     return this._req('nearby_friend_create', {});
   }
   async joinNearbyFriendCode(code) {
-    this._cache.at = 0;
-    return this._req('nearby_friend_join', { code: safe(code).replace(/\D/g, '').slice(0, 6) });
+    const result = await this._req('nearby_friend_join', { code: safe(code).replace(/\D/g, '').slice(0, 6) });
+    this.invalidateFriendsSnapshot('nearby_friend_joined');
+    return result;
   }
   async ackVoiceSignals({ roomId, roomSecret, peerId, seqs = [] } = {}) {
     return this._req('signal_ack', { roomId: safe(roomId), roomSecret: safe(roomSecret), peerId: safe(peerId), seqs: [...new Set((Array.isArray(seqs) ? seqs : []).map(safe).filter(Boolean))].slice(0, 200) });
