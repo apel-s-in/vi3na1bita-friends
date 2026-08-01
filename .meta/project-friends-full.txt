@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-08-01 17:05:30 UTC
+Сгенерировано: 2026-08-01 17:18:09 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1953,6 +1953,8 @@ import { FriendsCrypto } from './friends-crypto.js?v=9.2.7';
 const SIGNALING_URL = 'https://functions.yandexcloud.net/d4e2epg33mkshjoar6av';
 export const CHAT_E2EE_V2 = true;
 const safe = v => String(v == null ? '' : v).trim();
+const encoder = new TextEncoder();
+const byteLength = value => encoder.encode(typeof value === 'string' ? value : JSON.stringify(value ?? null)).byteLength;
 const jsonParse = raw => {
   try {
     return JSON.parse(raw);
@@ -2010,30 +2012,75 @@ export class FriendsCore {
   isReady() {
     return !!(this.identity?.friendId && this.identity?.yandexLinked && this.identity?.socialSession && Number(this.identity?.sessionExpiresAt || 0) > Date.now());
   }
-  async _req(action, data = {}) {
-    if (!this.isReady()) throw new Error('friends_identity_required');
-    let res;
+  async _fetch(action, data = {}, { signed = true } = {}) {
+    const requestBody = JSON.stringify({
+      action,
+      ...(signed ? { displayName: this.identity.displayName, avatarUrl: this.identity.avatar } : {}),
+      ...data
+    });
+    const startedAt = performance.now();
+    let status = 0;
+    let responseText = '';
+
     try {
-      res = await fetch(this.signalingUrl, {
+      const response = await fetch(this.signalingUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Vi3-Session': this.identity.socialSession },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(signed ? { 'X-Vi3-Session': this.identity.socialSession } : {})
+        },
         credentials: 'omit',
         mode: 'cors',
-        body: JSON.stringify({ action, displayName: this.identity.displayName, avatarUrl: this.identity.avatar, ...data })
+        body: requestBody
       });
-    } catch (err) {
-      this.onError(err);
-      throw new Error('network_unreachable');
+      status = response.status;
+      responseText = await response.text();
+      const result = jsonParse(responseText) || {};
+
+      globalThis.CloudUsageMeter?.record?.({
+        service: 'cloud_functions',
+        operation: 'invoke',
+        action,
+        host: new URL(this.signalingUrl).host,
+        status,
+        requestBytes: byteLength(requestBody),
+        responseBytes: byteLength(responseText),
+        durationMs: performance.now() - startedAt,
+        serverUsage: result.usage,
+        exact: true
+      });
+
+      if (!response.ok || result.ok === false) {
+        const error = new Error(`${action}: ${result.error || result.reason || `http_${response.status}`}`);
+        error.status = response.status;
+        error.action = action;
+        this.onError(error);
+        throw error;
+      }
+      return result;
+    } catch (error) {
+      if (!status) {
+        globalThis.CloudUsageMeter?.record?.({
+          service: 'cloud_functions',
+          operation: 'invoke',
+          action,
+          host: new URL(this.signalingUrl).host,
+          status: 0,
+          requestBytes: byteLength(requestBody),
+          responseBytes: byteLength(responseText),
+          durationMs: performance.now() - startedAt,
+          exact: true
+        });
+        this.onError(error);
+        throw new Error('network_unreachable');
+      }
+      throw error;
     }
-    const json = jsonParse(await res.text()) || {};
-    if (!res.ok || json.ok === false) {
-      const err = new Error(`${action}: ${json.error || json.reason || `http_${res.status}`}`);
-      err.status = res.status;
-      err.action = action;
-      this.onError(err);
-      throw err;
-    }
-    return json;
+  }
+  async _req(action, data = {}) {
+    if (!this.isReady()) throw new Error('friends_identity_required');
+    return this._fetch(action, data, { signed: true });
   }
   async register() {
     await this.crypto.ensureDevice();
@@ -2245,10 +2292,11 @@ export class FriendsCore {
     return result;
   }
   async getInviteInfo(inviteId, secret) {
-    const res = await fetch(this.signalingUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'friend_invite_get', inviteId: safe(inviteId), secret: safe(secret) }) });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'invite_not_found');
-    return json.invite;
+    const result = await this._fetch('friend_invite_get', {
+      inviteId: safe(inviteId),
+      secret: safe(secret)
+    }, { signed: false });
+    return result.invite;
   }
   async sendPush({ toFriendId, kind = 'GENERIC', text = '', gameId = '' } = {}) {
     return this._req('push_send', { toFriendId: safe(toFriendId), kind: safe(kind || 'GENERIC').slice(0, 40), text: safe(text).slice(0, 300), gameId: safe(gameId) });
