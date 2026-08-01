@@ -1,4 +1,3 @@
-/* GENERATED_FROM=input.js SOURCE_SHA256=299c8335e213205530c3b98e0278c96159eb855aeab2ebe762a71f441c797962 FORMAT=READABLE_COMPACT PRINT_WIDTH=320 BLANK_LINES=SAFE_REMOVE DO_NOT_EDIT */
 // /Friends/friends-ui.js
 // UI поверх FriendsCore: список друзей + добавление (ссылка/код/QR/почта).
 import { getPlayableGames } from './games-registry.js?v=9.2.7';
@@ -155,9 +154,8 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
     }
     el.innerHTML = `<div class="vf-empty"><span>⏳</span><b>Загружаем друзей...</b></div>`;
     try {
-      const friends = await core.getFriendList({ force });
-      const presence = friends.length ? await core.getPresence(friends.map(f => f.friendId), { force }) : {};
-      el.innerHTML = renderList(friends, presence);
+      const snapshot = await core.getFriendsSnapshot({ force });
+      el.innerHTML = renderList(snapshot.items || [], snapshot.presence || {});
       bindList();
     } catch (err) {
       el.innerHTML = `<div class="vf-empty"><span>⚠️</span><b>Не удалось загрузить</b><small>${esc(err.message)}</small></div>`;
