@@ -21,6 +21,7 @@ const HOST_METHODS = [
 
 const CORE_METHODS = [
   'register',
+  'getFriendsSnapshot',
   'getFriendList',
   'getPresence',
   'getProfile',
