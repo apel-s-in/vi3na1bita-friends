@@ -4,6 +4,7 @@
 const DB_NAME = 'Vi3FriendsCrypto';
 const DB_VERSION = 1;
 const STORE = 'deviceKeys';
+const REGISTRATION_LEASE_MS = 7 * 24 * 60 * 60 * 1000;
 const te = new TextEncoder();
 const td = new TextDecoder();
 const safe = value => String(value == null ? '' : value).trim();
@@ -93,13 +94,32 @@ export class FriendsCrypto {
   isSupported() {
     return !!(crypto?.subtle && indexedDB && this.identity?.friendId && typeof this.request === 'function');
   }
-  async ensureDevice() {
+  async ensureDevice({ forceRegister = false } = {}) {
     if (!this.isSupported()) throw new Error('crypto_not_supported');
-    if (this.device) return this.device;
-    const ownerId = this.identity.friendId;
-    this.device = (await dbGet(ownerId)) || (await generateDeviceKey(ownerId));
-    const result = await this.request('crypto_device_register', { deviceId: this.device.deviceId, publicJwk: this.device.publicJwk, fingerprint: this.device.fingerprint, label: this.identity.displayName || 'Устройство', deviceStableId: this.identity.deviceStableId });
+    if (!this.device) {
+      const ownerId = this.identity.friendId;
+      this.device = (await dbGet(ownerId)) || (await generateDeviceKey(ownerId));
+    }
+
+    const leaseFresh = !forceRegister &&
+      Number(this.device.registeredAt || 0) > 0 &&
+      Date.now() - Number(this.device.registeredAt) < REGISTRATION_LEASE_MS;
+
+    if (leaseFresh) return this.device;
+
+    const result = await this.request('crypto_device_register', {
+      deviceId: this.device.deviceId,
+      publicJwk: this.device.publicJwk,
+      fingerprint: this.device.fingerprint,
+      label: this.identity.displayName || 'Устройство',
+      deviceStableId: this.identity.deviceStableId
+    });
     if (!result?.ok) throw new Error('crypto_device_register_failed');
+
+    this.device = await dbPut({
+      ...this.device,
+      registeredAt: Date.now()
+    });
     return this.device;
   }
   async listDevices(friendId) {
