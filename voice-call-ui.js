@@ -31,6 +31,7 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
   let roomBusy = false;
   let cleanupObserver = null;
   let activityPublished = false;
+  let endPromise = null;
   const pendingIce = [];
   const publishVoiceState = (active, state) => {
     if (!active && !activityPublished) return;
@@ -270,10 +271,16 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
       setTimeout(() => ov.vfClose?.(), 1200);
     }
   };
-  const cleanupVoice = () => {
+  const endServerCall = (status = 'ended') => {
+    if (endPromise || !callId) return endPromise || Promise.resolve(false);
+    const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+    endPromise = core.endVoiceCall({ friendId, callId, roomId, roomSecret, status, durationSec }).catch(() => null);
+    return endPromise;
+  };
+  const cleanupVoice = (state = 'closed') => {
     if (closed) return;
     closed = true;
-    publishVoiceState(false, 'closed');
+    publishVoiceState(false, state);
     clearInterval(pollTimer);
     clearInterval(roomTimer);
     clearInterval(tickTimer);
@@ -295,13 +302,16 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
       if (!confirmed) return;
     }
     await sendSignal('bye', { at: Date.now() });
-    const durationSec = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
-    cleanupVoice();
-    await core.endVoiceCall({ friendId, callId, roomId, roomSecret, status, durationSec }).catch(() => null);
+    const completion = endServerCall(status);
+    cleanupVoice(status);
+    await completion;
     ov.vfClose?.();
   };
   cleanupObserver = new MutationObserver(() => {
-    if (!document.body.contains(ov)) cleanupVoice();
+    if (document.body.contains(ov)) return;
+    const completion = endServerCall('closed_external');
+    cleanupVoice('closed_external');
+    completion.catch(() => null);
   });
   cleanupObserver.observe(document.body, { childList: true, subtree: true });
   ov.querySelector('#vf-voice-close').onclick = () => finish('closed', true);
