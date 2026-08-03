@@ -56,7 +56,7 @@ vi3na1bita-friends/
 ├── styles.css
 └── voice-call-ui.js
 
-Сгенерировано: 2026-08-03 19:30:18 UTC
+Сгенерировано: 2026-08-03 19:32:00 UTC
 
 //=================================================
 // FILE: /.github/workflows/deploy.yml
@@ -1041,6 +1041,9 @@ jobs:
           node --input-type=module --check < games-registry.js
           node --input-type=module --check < embedded-rpc-contract.js
           node --input-type=module --check < modal-adapter.js
+          grep -q "endServerCall" voice-call-ui.js
+          grep -q "closed_external" voice-call-ui.js
+          grep -q "core.endVoiceCall" voice-call-ui.js
 
       - name: Validate E2EE-only contract
         run: |
