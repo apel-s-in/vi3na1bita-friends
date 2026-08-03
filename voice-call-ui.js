@@ -10,7 +10,7 @@ const fmtChatTime = ts => {
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${yy}.${mm}.${dd} ${hh}:${mi}`;
 };
-export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, core, openModal, toast, confirmAction = async () => false, onVoiceOpened = null } = {}) => {
+export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, core, openModal, toast, confirmAction = async () => false, onVoiceOpened = null, onVoiceStateChange = null } = {}) => {
   if (!friendId || !core || typeof openModal !== 'function') return false;
   let pc = null;
   let localStream = null;
@@ -30,7 +30,21 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
   let pollBusy = false;
   let roomBusy = false;
   let cleanupObserver = null;
+  let activityPublished = false;
   const pendingIce = [];
+  const publishVoiceState = (active, state) => {
+    if (!active && !activityPublished) return;
+    activityPublished = active === true;
+    try {
+      onVoiceStateChange?.({
+        active: active === true,
+        state: String(state || ''),
+        friendId,
+        callId,
+        updatedAt: Date.now()
+      });
+    } catch {}
+  };
   const ov = openModal(
     `
     <div class="vf-modal-head vf-chat-head">
@@ -55,6 +69,7 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
     { closeOnBackdrop: false }
   );
   ov.querySelector('.vf-modal')?.classList.add('vf-chat-modal', 'vf-voice-modal');
+  publishVoiceState(true, incoming ? 'incoming_open' : 'outgoing_open');
   const log = ov.querySelector('.vf-voice-log');
   const statusEl = ov.querySelector('#vf-voice-status');
   const detailEl = ov.querySelector('#vf-voice-detail');
@@ -258,6 +273,7 @@ export const openVoiceCallUi = ({ friendId, name = 'Друг', incoming = null, 
   const cleanupVoice = () => {
     if (closed) return;
     closed = true;
+    publishVoiceState(false, 'closed');
     clearInterval(pollTimer);
     clearInterval(roomTimer);
     clearInterval(tickTimer);
