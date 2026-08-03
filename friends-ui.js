@@ -87,7 +87,7 @@ const renderFriendsGuide = webPushEnabled => `
     </div>
   </section>
 `;
-export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null } = {}) => {
+export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPush = null, getUnread = null, getWebPushEnabled = null, onUnreadClick = null, onChatOpened = null, onVoiceOpened = null, onVoiceStateChange = null } = {}) => {
   if (!root) return null;
   const el = document.createElement('section');
   el.className = 'vf-wrap';
@@ -322,7 +322,17 @@ export const mountFriendsUI = (root, core, { onGameInvite = null, onEnableWebPus
         activeChatApi = api;
       }
     });
-  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => openVoiceCallUi({ friendId, name, incoming, core, openModal, toast, confirmAction: modal.confirm, onVoiceOpened });
+  const openVoiceCallModal = (friendId, name = 'Друг', incoming = null) => openVoiceCallUi({
+    friendId,
+    name,
+    incoming,
+    core,
+    openModal,
+    toast,
+    confirmAction: modal.confirm,
+    onVoiceOpened,
+    onVoiceStateChange
+  });
   const openVoiceCall = async (friendId, incoming = null) => {
     if (!friendId) return false;
     let name = 'Друг';
